@@ -1,22 +1,268 @@
-import { invoke } from "@tauri-apps/api/core";
+import "./styles.css";
+import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { api, type MonthData, type Settings, type TasksData, type ViewMode } from "./api";
+import { errorText, isAuthError } from "./errors";
+import { buildMonthGrid, dayKey, eventsByDay, pad, tasksByDay } from "./calendar/month-grid";
+import { renderMonth } from "./calendar/MonthCalendar";
+import { renderTasks } from "./tasks/TaskList";
+import { createCompletion } from "./tasks/task-completion";
+import { renderViewSwitcher } from "./ViewSwitcher";
+import { renderSettings } from "./Settings";
 
-let greetInputEl: HTMLInputElement | null;
-let greetMsgEl: HTMLElement | null;
+const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+const app = $("app");
+const header = $("header");
+const viewsEl = $("views");
+const statusEl = $("status");
+const calEl = $("calendar");
+const tasksEl = $("tasks");
+const overlay = $("overlay");
+const toastEl = $("toast");
+const loginMsg = $("login-msg");
+const loginBtn = $<HTMLButtonElement>("btn-login");
 
-async function greet() {
-  if (greetMsgEl && greetInputEl) {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    greetMsgEl.textContent = await invoke("greet", {
-      name: greetInputEl.value,
-    });
+const now = new Date();
+const state = {
+  settings: null as Settings | null,
+  year: now.getFullYear(),
+  month: now.getMonth() + 1,
+  selected: dayKey(now),
+  monthData: null as MonthData | null,
+  tasksData: null as TasksData | null,
+  loggedIn: false,
+  loading: false,
+};
+
+let toastTimer = 0;
+function toast(msg: string) {
+  toastEl.textContent = msg;
+  toastEl.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => (toastEl.hidden = true), 4000);
+}
+
+const completion = createCompletion({
+  setCompleted: (listId, taskId, completed) => api.setTaskCompleted(listId, taskId, completed),
+  onChange: () => renderTasksView(),
+  onRemove: (id) => {
+    if (state.tasksData) state.tasksData.tasks = state.tasksData.tasks.filter((t) => t.id !== id);
+    render();
+  },
+  onError: (m) => toast(`완료 처리 실패: ${m}`),
+});
+
+function hhmm(iso: string): string {
+  const d = new Date(iso);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function updateStatus() {
+  const parts: string[] = [];
+  const stale = state.monthData?.stale || state.tasksData?.stale;
+  const fetched = state.monthData?.fetchedAt ?? state.tasksData?.fetchedAt;
+  if (stale && fetched) parts.push(`오프라인 · 마지막 갱신 ${hhmm(fetched)}`);
+  const failed = (state.monthData?.failed.length ?? 0) + (state.tasksData?.failed.length ?? 0);
+  if (failed > 0) parts.push("일부 목록을 불러오지 못했습니다");
+  statusEl.textContent = parts.join(" · ");
+}
+
+function showLogin(message = "") {
+  state.loggedIn = false;
+  app.dataset.auth = "out";
+  loginMsg.textContent = message;
+}
+
+function handleError(e: unknown) {
+  if (isAuthError(e)) showLogin("다시 로그인해 주세요");
+  else toast(errorText(e));
+}
+
+function renderTasksView() {
+  const s = state.settings!;
+  renderTasks(tasksEl, {
+    lists: state.tasksData?.lists ?? [],
+    tasks: state.tasksData?.tasks ?? [],
+    hidden: s.hiddenTaskLists,
+    today: dayKey(new Date()),
+    isChecked: completion.isChecked,
+    onToggle: (t) => void completion.toggle(t),
+  });
+}
+
+function onNav(delta: -1 | 0 | 1) {
+  if (delta === 0) {
+    const t = new Date();
+    state.year = t.getFullYear();
+    state.month = t.getMonth() + 1;
+    state.selected = dayKey(t);
+  } else {
+    const d = new Date(state.year, state.month - 1 + delta, 1);
+    state.year = d.getFullYear();
+    state.month = d.getMonth() + 1;
+    state.selected = dayKey(d);
+  }
+  render();
+  void loadMonth();
+}
+
+function render() {
+  const s = state.settings;
+  if (!s) return;
+  app.dataset.view = s.viewMode;
+  renderViewSwitcher(viewsEl, s.viewMode, (mode: ViewMode) => void saveSettings({ ...s, viewMode: mode }));
+  if (!state.loggedIn) return;
+  const grid = buildMonthGrid(state.year, state.month, new Date());
+  const visibleTasks = (state.tasksData?.tasks ?? []).filter((t) => !s.hiddenTaskLists.includes(t.listId));
+  renderMonth(calEl, {
+    year: state.year,
+    month: state.month,
+    grid,
+    events: eventsByDay(state.monthData?.events ?? [], grid),
+    tasks: tasksByDay(visibleTasks),
+    colors: new Map((state.monthData?.calendars ?? []).map((c) => [c.id, c.color])),
+    selected: state.selected,
+    onSelect: (k) => {
+      state.selected = k;
+      render();
+    },
+    onNav,
+  });
+  renderTasksView();
+}
+
+async function loadMonth() {
+  const { year, month } = state;
+  try {
+    const data = await api.getMonth(year, month);
+    if (state.year === year && state.month === month) state.monthData = data;
+    render();
+  } catch (e) {
+    handleError(e);
+  }
+  updateStatus();
+}
+
+let lastRefresh = 0;
+async function refreshAll() {
+  if (!state.loggedIn || state.loading) return;
+  state.loading = true;
+  try {
+    const [m, t] = await Promise.all([api.getMonth(state.year, state.month), api.getTasks()]);
+    state.monthData = m;
+    state.tasksData = t;
+    render();
+  } catch (e) {
+    handleError(e);
+  } finally {
+    state.loading = false;
+    lastRefresh = Date.now();
+    updateStatus();
   }
 }
 
-window.addEventListener("DOMContentLoaded", () => {
-  greetInputEl = document.querySelector("#greet-input");
-  greetMsgEl = document.querySelector("#greet-msg");
-  document.querySelector("#greet-form")?.addEventListener("submit", (e) => {
-    e.preventDefault();
-    greet();
+function applyLock(locked: boolean) {
+  for (const el of [header, statusEl]) {
+    if (locked) el.removeAttribute("data-tauri-drag-region");
+    else el.setAttribute("data-tauri-drag-region", "");
+  }
+  app.dataset.locked = String(locked);
+  getCurrentWindow().setResizable(!locked).catch(() => {});
+}
+
+let refreshTimer = 0;
+function resetTimer() {
+  clearInterval(refreshTimer);
+  refreshTimer = window.setInterval(() => void refreshAll(), state.settings!.refreshMinutes * 60_000);
+}
+
+async function saveSettings(next: Settings) {
+  try {
+    await api.saveSettings(next);
+    state.settings = next;
+    applyLock(next.locked);
+    resetTimer();
+    render();
+  } catch (e) {
+    toast(`설정 저장 실패: ${errorText(e)}`);
+  }
+}
+
+function openSettings() {
+  if (!state.settings) return;
+  overlay.hidden = false;
+  renderSettings(overlay, {
+    settings: state.settings,
+    calendars: state.monthData?.calendars ?? [],
+    lists: state.tasksData?.lists ?? [],
+    onSave: async (next) => {
+      overlay.hidden = true;
+      await saveSettings(next);
+      await refreshAll();
+    },
+    onClose: () => (overlay.hidden = true),
+    onLogout: async () => {
+      overlay.hidden = true;
+      await api.logout().catch(() => {});
+      showLogin();
+    },
   });
-});
+}
+
+async function doLogin() {
+  loginBtn.disabled = true;
+  loginMsg.textContent = "브라우저에서 로그인을 완료해 주세요…";
+  try {
+    await api.login();
+    state.loggedIn = true;
+    app.dataset.auth = "in";
+    loginMsg.textContent = "";
+    await refreshAll();
+  } catch (e) {
+    loginMsg.textContent = errorText(e);
+  } finally {
+    loginBtn.disabled = false;
+  }
+}
+
+async function init() {
+  state.settings = await api.getSettings();
+  applyLock(state.settings.locked);
+  resetTimer();
+  loginBtn.onclick = () => void doLogin();
+  $("btn-refresh").onclick = () => void refreshAll();
+  $("btn-settings").onclick = openSettings;
+
+  await listen("refresh", () => void refreshAll());
+  await listen("open-settings", openSettings);
+  await listen<Settings>("settings-changed", (e) => {
+    state.settings = e.payload;
+    applyLock(e.payload.locked);
+    render();
+  });
+  await listen("logged-out", () => showLogin());
+
+  // 절전 복귀 감지: 30초 틱이 90초 넘게 밀리면 새로고침.
+  let lastTick = Date.now();
+  window.setInterval(() => {
+    const t = Date.now();
+    if (t - lastTick > 90_000 && t - lastRefresh > 60_000) void refreshAll();
+    lastTick = t;
+  }, 30_000);
+  window.addEventListener("online", () => void refreshAll());
+
+  render();
+  if (await api.authStatus()) {
+    state.loggedIn = true;
+    app.dataset.auth = "in";
+    const [m, t] = await Promise.all([api.peekMonth(state.year, state.month), api.peekTasks()]);
+    state.monthData = m;
+    state.tasksData = t;
+    render();
+    await refreshAll();
+  } else {
+    showLogin();
+  }
+}
+
+init().catch((e) => toast(errorText(e)));
