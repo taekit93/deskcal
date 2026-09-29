@@ -1,5 +1,6 @@
 pub mod calendar;
 pub mod models;
+pub mod tasks;
 
 use std::sync::Arc;
 use std::time::Duration;
