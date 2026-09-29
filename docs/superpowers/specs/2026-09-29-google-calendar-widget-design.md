@@ -29,7 +29,7 @@ Google Calendar와 Google Tasks는 Windows 위젯을 공식 지원하지 않는�
 | ID | 내용 |
 |----|------|
 | F1 | Google OAuth 로그인 (브라우저, PKCE, loopback) / 로그아웃 |
-| F2 | 월간 달력: 월 격자, 이전/다음 달 이동, 오늘 강조, 일정 있는 날 캘린더 색 점 표시 |
+| F2 | 월간 달력(일요일 시작, 6주 격자), 이전/다음 달 이동, 오늘 강조, 일정 있는 날 캘린더 색 점 표시 |
 | F3 | 날짜 선택 시 해당 날짜 일정 목록 (종일 일정 우선, 이후 시간순) |
 | F4 | 할 일 목록: 켜 둔 Task 목록별로 미완료 할 일 표시, 마감일 표시 |
 | F5 | 할 일 완료 체크 (낙관적 업데이트, 3초 내 취소 가능, 실패 시 롤백) |
@@ -69,8 +69,8 @@ Google Calendar와 Google Tasks는 Windows 위젯을 공식 지원하지 않는�
 │   ├─ cache    마지막 응답 로컬 캐시                  │
 │   ├─ desktop  바탕화면 고정 (Win32)                 │
 │   └─ tray     트레이 메뉴                            │
-│  설정: %APPDATA%\gcal-widget\settings.json          │
-│  캐시: %APPDATA%\gcal-widget\cache.json             │
+│  설정: %APPDATA%\kr.taekit93.gcalwidget\settings.json│
+│  캐시: %APPDATA%\kr.taekit93.gcalwidget\cache.json   │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -136,12 +136,14 @@ google-calendar-widget/
 
 ## 6. 바탕화면 고정 (desktop.rs)
 - 창 속성: `decorations: false`, `transparent: true`, `skipTaskbar: true`, `resizable: true`.
-- 1순위: Progman에 `0x052C` 메시지를 보내 WorkerW를 생성한 뒤, 위젯 창을 WorkerW의 자식으로 붙인다 (Win+D에도 유지).
-- 2순위 (1순위 실패 시 또는 Windows 버전별 동작 차이 시): `SetWindowPos(HWND_BOTTOM)` + `WM_WINDOWPOSCHANGING`에서 z-order를 강제로 맨 아래로 유지한다.
+- 기본 방식 (Rainmeter "On Desktop" 방식):
+  - 창을 서브클래싱해 `WM_WINDOWPOSCHANGING`에서 z-order를 항상 `HWND_BOTTOM`으로 강제한다. 클릭해도 다른 창 위로 올라오지 않는다.
+  - `SetWinEventHook(EVENT_SYSTEM_FOREGROUND)`로 전경 창을 감시한다. 바탕화면(`Progman`/`WorkerW`)이 전경이 되면(Win+D, 바탕화면 클릭) 위젯을 잠시 최상위로 올리고, 다른 창이 전경이 되면 다시 맨 아래로 보낸다.
+- 채택하지 않은 방식: WorkerW 자식으로 붙이는 방식. Windows 11 24H2 이후 WorkerW가 Progman 안, 아이콘 레이어(SHELLDLL_DefView) 아래로 이동해서 위젯이 클릭을 받지 못할 가능성이 높다.
 - 이동·크기 조절: 상단 드래그 영역 + 가장자리 리사이즈. 트레이 "위치 잠금" 시 비활성화한다.
-- 구현 초기에 두 방식을 스파이크로 검증하고, Windows 11 26200에서 동작하는 방식을 확정한다.
+- 구현 단계에서 Windows 11 26200에서 수동 체크리스트로 검증한다.
 
-## 7. 설정 (settings.json)
+## 7. 설정 (`%APPDATA%\kr.taekit93.gcalwidget\settings.json`)
 ```json
 {
   "viewMode": "both",            // "calendar" | "tasks" | "both"
@@ -167,7 +169,7 @@ google-calendar-widget/
 | 바탕화면 고정 실패 | HWND_BOTTOM 방식으로 대체하고 로그 기록 |
 | 중복 실행 | single-instance 플러그인으로 기존 창에 포커스 |
 
-로그: `%APPDATA%\gcal-widget\logs\` (최근 7일 보관).
+로그: `%LOCALAPPDATA%\kr.taekit93.gcalwidget\logs\` (1MB 초과 시 교체, 1개 보관).
 
 ## 9. Google Cloud 설정 (사전 준비)
 1. Google Cloud Console에서 프로젝트를 생성하고 Calendar API, Tasks API를 활성화한다.
