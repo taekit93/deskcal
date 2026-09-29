@@ -1,6 +1,7 @@
 mod auth;
 mod cache;
 mod commands;
+mod desktop;
 mod error;
 mod google;
 mod range;
@@ -59,6 +60,7 @@ pub fn run() {
             app.manage(AppState { auth, google, cache, settings: Mutex::new(loaded), settings_path });
             tray::setup_tray(app.handle())?;
             let window = app.get_webview_window("main").expect("main window is configured");
+            desktop::pin(&window);
             window.show()?;
             Ok(())
         })
