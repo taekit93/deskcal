@@ -86,10 +86,12 @@ mod tests {
     #[test]
     fn save_then_load_roundtrip() {
         let (_d, p) = path();
-        let mut s = Settings::default();
-        s.view_mode = ViewMode::Tasks;
-        s.hidden_calendars = vec!["cal-a".into()];
-        s.hidden_task_lists = vec!["list-b".into()];
+        let s = Settings {
+            view_mode: ViewMode::Tasks,
+            hidden_calendars: vec!["cal-a".into()],
+            hidden_task_lists: vec!["list-b".into()],
+            ..Settings::default()
+        };
         save(&p, &s).unwrap();
         assert_eq!(load(&p), s);
     }
