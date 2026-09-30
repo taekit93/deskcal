@@ -212,7 +212,8 @@ impl Auth {
         }
         let body = resp.text().await.unwrap_or_default();
         let code = serde_json::from_str::<TokenError>(&body).map(|e| e.error).unwrap_or_default();
-        if code == "invalid_grant" {
+        // invalid_grant: 만료·철회. unauthorized_client: 앱의 OAuth 클라이언트가 바뀌어 이전 토큰을 못 씀.
+        if code == "invalid_grant" || code == "unauthorized_client" {
             self.invalidate();
             self.store.delete()?;
             return Err(AppError::AuthExpired);
@@ -473,6 +474,20 @@ mod tests {
             .mount(&server)
             .await;
         let auth = Auth::new(cfg_for(&server.uri()), Box::new(MemoryStore::with("r1")), reqwest::Client::new());
+        assert!(matches!(auth.access_token().await, Err(AppError::AuthExpired)));
+        assert!(!auth.is_logged_in());
+    }
+
+    #[tokio::test]
+    async fn token_from_another_oauth_client_is_treated_as_expired() {
+        // 앱의 OAuth 클라이언트가 바뀌면 이전 refresh token은 unauthorized_client로 거절된다.
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/token"))
+            .respond_with(ResponseTemplate::new(401).set_body_json(json!({"error": "unauthorized_client"})))
+            .mount(&server)
+            .await;
+        let auth = Auth::new(cfg_for(&server.uri()), Box::new(MemoryStore::with("old")), reqwest::Client::new());
         assert!(matches!(auth.access_token().await, Err(AppError::AuthExpired)));
         assert!(!auth.is_logged_in());
     }
