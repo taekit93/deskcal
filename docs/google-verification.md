@@ -1,5 +1,30 @@
 # Google OAuth 앱 검증 준비
 
+## 현재 상태 (2026-09-30)
+
+| 항목 | 상태 |
+|---|---|
+| Google Cloud 프로젝트 | `deskcal-510213` (taekit93@gmail.com, 조직 없음) |
+| API | Google Calendar API, Google Tasks API 사용 설정 완료 |
+| OAuth 동의 화면 | 외부, **프로덕션 게시 완료**, 앱 이름 DeskCal, 로고 등록 |
+| 스코프 | `calendar.calendarlist.readonly`(민감하지 않음), `calendar.events.readonly`(민감), `tasks`(민감) |
+| OAuth 클라이언트 | 데스크톱 앱 "DeskCal Windows" (값은 `.env`, git 제외) |
+| 홈페이지 / 개인정보처리방침 | https://taekit93.github.io/deskcal/ , https://taekit93.github.io/deskcal/privacy.html |
+| 승인된 도메인 | taekit93.github.io |
+| Search Console | `https://taekit93.github.io/`(HTML 파일, 저장소 `taekit93/taekit93.github.io`)와 `https://taekit93.github.io/deskcal/` 소유권 확인 완료 |
+| 브랜드 검증 | **대기**: 소유권 확인 직후라 Google이 24시간 뒤 재시도를 요구함 |
+| 데이터 액세스 검증 | **대기**: 브랜드 검증 통과 후 신청 가능, 시연 영상(YouTube 링크) 필요 |
+
+## 남은 순서
+
+1. **2026-10-01 이후** Google Cloud 콘솔 → Google 인증 플랫폼 → **브랜딩** → 인증 상태의 "문제 보기" → "문제를 해결함" → 계속 (브랜딩 재인증 요청)
+2. `scripts/record-demo.ps1`로 4장 순서대로 시연 영상을 녹화하고 YouTube에 **일부 공개**로 업로드
+3. **인증 센터** → 데이터 액세스 인증 신청: 3장의 스코프별 설명과 데이터 처리 요약을 붙여 넣고 영상 링크 입력
+4. 심사 메일에 답변 (보통 며칠~몇 주)
+
+---
+
+
 DeskCal은 민감한 스코프(`calendar.calendarlist.readonly`, `calendar.events.readonly`, `tasks`)를 쓰므로, 사용자 수 제한(100명)과 "확인되지 않은 앱" 경고를 없애려면 Google 검증이 필요합니다. 이 문서는 신청에 필요한 자료와 순서를 정리합니다.
 
 ## 전제
