@@ -23,7 +23,7 @@
   --desk-glow: #d9a441;
   --font-display: "Bricolage Grotesque", "IBM Plex Sans KR", "Segoe UI", sans-serif;
   --font-body: "IBM Plex Sans KR", "Segoe UI", "Malgun Gothic", sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+  --font-mono: "IBM Plex Mono", "IBM Plex Sans KR", ui-monospace, "Cascadia Mono", monospace;
   --measure: 62ch;
   color-scheme: light;
 }
@@ -41,7 +41,9 @@
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
-body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.7 var(--font-body); -webkit-font-smoothing: antialiased; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.7 var(--font-body); -webkit-font-smoothing: antialiased; word-break: keep-all; overflow-wrap: break-word; }
+/* 고정폭·대문자 라벨 안의 한국어는 본문 글꼴로 (자간이 벌어져 보이지 않게) */
+.eyebrow [lang="ko"], .tweak .label [lang="ko"], .scopes th [lang="ko"] { font-family: var(--font-body); letter-spacing: 0.02em; }
 a { color: var(--accent); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
 
@@ -67,14 +69,17 @@ a { color: var(--accent); }
 .hero { padding-block: 56px 32px; display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 48px; align-items: center; }
 @media (max-width: 900px) { .hero { grid-template-columns: minmax(0, 1fr); padding-block: 36px 20px; gap: 32px; } }
 .eyebrow { font: 500 12px/1 var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin: 0 0 18px; }
-h1 { font: 700 clamp(34px, 5vw, 54px)/1.18 var(--font-body); letter-spacing: -0.035em; margin: 0 0 20px; text-wrap: balance; }
+.hero-copy { container-type: inline-size; min-width: 0; }
+/* 제목 두 줄은 각각 한 줄로 유지하고, 글자 크기를 칸 너비에 맞춘다 */
+h1 .line { display: block; white-space: nowrap; }
+h1 { font: 700 clamp(26px, 8.2cqi, 52px)/1.22 var(--font-body); letter-spacing: -0.035em; margin: 0 0 20px; text-wrap: balance; }
 h1 .en-display { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.04em; }
 .lead { font-size: 18px; color: var(--muted); max-width: 46ch; margin: 0 0 28px; }
 .cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .btn { display: inline-flex; align-items: center; gap: 8px; font: 500 15px/1 var(--font-body); padding: 13px 20px; border-radius: 10px; text-decoration: none; border: 1px solid var(--line); color: var(--ink); background: var(--surface); }
 .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 .btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
-.req { font: 400 13px/1.5 var(--font-mono); color: var(--muted); margin-top: 18px; }
+.req { font: 400 13.5px/1.6 var(--font-body); color: var(--muted); margin-top: 16px; }
 
 /* 바탕화면 목업 */
 .desk {
@@ -101,17 +106,18 @@ h1 .en-display { font-family: var(--font-display); font-weight: 800; letter-spac
 .taskbar .apps i:first-child { background: linear-gradient(135deg, #4aa3ff, #2266dd); }
 .tray { display: flex; align-items: center; gap: 10px; font: 400 11px/1.25 var(--font-mono); text-align: right; }
 .tray .dc { width: 20px; height: 20px; border-radius: 5px; display: grid; place-items: center; background: #0d7a63; }
-.hint { position: absolute; z-index: 3; left: 18px; bottom: 62px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: rgba(255,255,255,0.85); text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
 kbd { font: 500 11px/1 var(--font-mono); padding: 4px 6px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.35); border-bottom-width: 2px; background: rgba(0,0,0,0.25); color: #fff; }
 @media (max-width: 560px) {
   .desk { height: 580px; }
-  .desk-icons, .hint { display: none; }
+  .desk-icons { display: none; }
   .widget { right: 12px; left: 12px; top: 12px; width: auto; height: 506px; }
   .tray .clock { display: none; }
 }
 
 /* 데모 조작 */
-.tweak { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 16px; font-size: 14px; color: var(--muted); }
+.tweak { display: grid; gap: 12px; margin-top: 18px; font-size: 14px; color: var(--muted); }
+.tweak .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.tweak .label { min-width: 7.5em; }
 .tweak .label { font: 500 12px/1 var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; font: 500 13px/1 var(--font-body); padding: 7px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
@@ -132,7 +138,7 @@ section.block { padding-block: 72px; border-top: 1px solid var(--line); }
 .feature svg { color: var(--accent); margin-bottom: 14px; }
 .feature h3 { font: 700 17px/1.4 var(--font-body); margin: 0 0 6px; letter-spacing: -0.01em; }
 .feature p { margin: 0; color: var(--muted); font-size: 15px; }
-.feature kbd { color: var(--ink); background: var(--paper); border-color: var(--line); }
+.feature kbd, .req kbd { color: var(--ink); background: var(--paper); border-color: var(--line); }
 
 .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; counter-reset: step; }
 @media (max-width: 860px) { .steps { grid-template-columns: minmax(0, 1fr); } }
@@ -149,7 +155,8 @@ section.block { padding-block: 72px; border-top: 1px solid var(--line); }
 .scopes { width: 100%; border-collapse: collapse; font-size: 14px; }
 .scopes th, .scopes td { text-align: left; padding: 12px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .scopes th { font: 500 12px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-.scopes code { font: 400 12.5px/1.5 var(--font-mono); word-break: break-all; }
+.scopes code { font: 400 12.5px/1.5 var(--font-mono); white-space: nowrap; }
+.scopes { min-width: 420px; }
 .table-scroll { overflow-x: auto; }
 
 .faq { max-width: 780px; display: grid; gap: 0; }
@@ -191,11 +198,11 @@ footer .legal { margin-left: auto; }
 
 <main id="top">
   <div class="wrap hero">
-    <div>
+    <div class="hero-copy">
       <p class="eyebrow"><span lang="ko">Windows 11 바탕화면 위젯</span><span lang="en">A desktop widget for Windows 11</span></p>
       <h1>
-        <span lang="ko">Google 캘린더와 할 일을<br>바탕화면 위에 그대로.</span>
-        <span lang="en"><span class="en-display">Your calendar and tasks,</span><br>right on your desktop.</span>
+        <span lang="ko"><span class="line">Google 캘린더와 할 일을</span><span class="line">바탕화면 위에 그대로.</span></span>
+        <span lang="en"><span class="line en-display">Your calendar and tasks,</span><span class="line">right on your desktop.</span></span>
       </h1>
       <p class="lead">
         <span lang="ko">DeskCal은 Google 캘린더의 월간 일정과 Google Tasks 할 일을 바탕화면에 붙여 둡니다. 브라우저를 열지 않아도 오늘 일정이 보이고, 할 일은 바로 체크할 수 있습니다.</span>
@@ -218,7 +225,6 @@ footer .legal { margin-left: auto; }
           <div class="desk-icon"><i></i><span lang="ko">문서</span><span lang="en">Documents</span></div>
         </div>
         <iframe class="widget" id="demo" src="demo/index.html" title="DeskCal 라이브 데모 (예시 데이터)" allowtransparency="true"></iframe>
-        <p class="hint" aria-hidden="true"><kbd>Win</kbd>+<kbd>D</kbd><span lang="ko">를 눌러도 위젯은 그대로</span><span lang="en">and the widget stays put</span></p>
         <div class="taskbar" aria-hidden="true">
           <div class="apps"><i></i><i></i><i></i><i></i></div>
           <div class="tray">
@@ -228,6 +234,7 @@ footer .legal { margin-left: auto; }
         </div>
       </div>
       <div class="tweak" id="demo-controls">
+        <div class="row">
         <span class="label"><span lang="ko">테마</span><span lang="en">Theme</span></span>
         <div class="chips" id="theme-chips">
           <button type="button" class="chip" data-theme-name="dark" aria-pressed="true"><i class="sw" style="background:#16181e"></i><span lang="ko">다크</span><span lang="en">Dark</span></button>
@@ -236,11 +243,14 @@ footer .legal { margin-left: auto; }
           <button type="button" class="chip" data-theme-name="forest" aria-pressed="false"><i class="sw" style="background:#14201a"></i><span lang="ko">포레스트</span><span lang="en">Forest</span></button>
           <button type="button" class="chip" data-theme-name="rose" aria-pressed="false"><i class="sw" style="background:#fdf2f4"></i><span lang="ko">로즈</span><span lang="en">Rose</span></button>
         </div>
-        <label for="opacity"><span lang="ko">배경 불투명도</span><span lang="en">Background opacity</span></label>
-        <input type="range" id="opacity" min="30" max="100" value="92">
-        <output for="opacity" id="opacity-out">92%</output>
+        </div>
+        <div class="row">
+          <label class="label" for="opacity"><span lang="ko">배경 불투명도</span><span lang="en">Opacity</span></label>
+          <input type="range" id="opacity" min="30" max="100" value="92">
+          <output for="opacity" id="opacity-out">92%</output>
+        </div>
       </div>
-      <p class="req"><span lang="ko">위 위젯은 예시 데이터로 동작하는 실제 앱 화면입니다. 날짜를 누르거나 할 일을 체크해 보세요.</span><span lang="en">The widget above is the real app UI running on sample data. Click a date or check off a task.</span></p>
+      <p class="req"><span lang="ko">위 위젯은 예시 데이터로 동작하는 실제 앱 화면입니다. 날짜를 누르거나 할 일을 체크해 보세요. 실제 앱은 다른 창 뒤에 머물고, <kbd class="k">Win</kbd>+<kbd class="k">D</kbd>로 바탕화면을 보면 나타납니다.</span><span lang="en">The widget above is the real app UI running on sample data. Click a date or check off a task. The real app stays behind your windows and shows up when you press <kbd class="k">Win</kbd>+<kbd class="k">D</kbd>.</span></p>
     </div>
   </div>
 
