@@ -57,7 +57,7 @@ export function renderSettings(el: HTMLElement, p: SettingsViewProps): void {
         `<button class="accent-opt ${draft.accent === c ? "active" : ""}" data-accent="${c}" style="background:${c}" title="${c}"></button>`).join("")}
       <label class="accent-custom" title="직접 고르기"><input type="color" id="accent-custom" value="${esc(draft.accent ?? "#8ab4f8")}"></label>
     </div>
-    <h3>배경 투명도 <span id="opacity-val" class="muted">${Math.round(draft.opacity * 100)}%</span></h3>
+    <h3>배경 불투명도 <span id="opacity-val" class="muted">${Math.round(draft.opacity * 100)}%</span></h3>
     <input type="range" id="opacity" min="30" max="100" step="1" value="${Math.round(draft.opacity * 100)}">
     <h3>글자 크기</h3>${segmented("font", FONT_OPTIONS, draft.fontScale)}
     <h3>상단 바</h3>${segmented("header", HEADER_OPTIONS, draft.headerMode)}
