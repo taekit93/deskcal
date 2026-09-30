@@ -1,6 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "DeskCal",
+  "mainBinaryName": "DeskCal",
   "version": "0.1.0",
   "identifier": "kr.taekit93.gcalwidget",
   "build": {
