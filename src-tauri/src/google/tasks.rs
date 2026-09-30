@@ -68,6 +68,8 @@ impl Google {
             let mut q = vec![
                 ("showCompleted", "false".to_string()),
                 ("showHidden", "false".to_string()),
+                // 스페이스·문서에서 나에게 할당된 할 일은 이 값이 없으면 빠진다.
+                ("showAssigned", "true".to_string()),
                 ("maxResults", "100".to_string()),
             ];
             if let Some(t) = &page_token {
@@ -158,6 +160,24 @@ mod tests {
                 Task { id: "t2".into(), list_id: "L1".into(), title: "(제목 없음)".into(), due: None, notes: None },
             ]
         );
+    }
+
+    #[tokio::test]
+    async fn list_tasks_includes_tasks_assigned_from_spaces_and_docs() {
+        let (server, g) = setup().await;
+        mount_token(&server).await;
+        Mock::given(method("GET"))
+            .and(path("/tasks/v1/lists/L1/tasks"))
+            .and(query_param("showAssigned", "true"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "items": [{"id": "s1", "title": "스페이스 할 일", "status": "needsAction",
+                           "assignmentInfo": {"surfaceType": "SPACE", "linkToTask": "https://chat.google.com/x"}}]
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let ids: Vec<_> = g.list_tasks("L1").await.unwrap().into_iter().map(|t| t.id).collect();
+        assert_eq!(ids, vec!["s1"]);
     }
 
     #[tokio::test]
