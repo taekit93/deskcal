@@ -30,6 +30,16 @@ impl Cache {
         self.read_map().remove(key).and_then(|v| serde_json::from_value(v).ok())
     }
 
+    /// 저장된 캐시를 모두 지운다 (로그아웃 시 이전 계정 데이터 제거).
+    pub fn clear(&self) -> Result<(), AppError> {
+        let _guard = self.lock.lock().unwrap();
+        match fs::remove_file(&self.path) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(AppError::Storage(e.to_string())),
+        }
+    }
+
     pub fn put<T: Serialize>(&self, key: &str, value: &T) -> Result<(), AppError> {
         let _guard = self.lock.lock().unwrap();
         let mut map = self.read_map();
@@ -94,6 +104,15 @@ mod tests {
     fn missing_key_is_none() {
         let (_d, c) = cache();
         assert_eq!(c.get::<Snap>("month:2026-09"), None);
+    }
+
+    #[test]
+    fn clear_removes_everything_and_is_idempotent() {
+        let (_d, c) = cache();
+        c.put("a", &snap(&["1"])).unwrap();
+        c.clear().unwrap();
+        assert_eq!(c.get::<Snap>("a"), None);
+        c.clear().unwrap();
     }
 
     #[test]

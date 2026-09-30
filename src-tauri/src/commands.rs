@@ -67,7 +67,13 @@ pub async fn login(app: AppHandle, state: State<'_, AppState>) -> Result<(), App
 
 #[tauri::command]
 pub fn logout(state: State<'_, AppState>) -> Result<(), AppError> {
-    state.auth.logout()
+    sign_out(&state)
+}
+
+/// 로그아웃: 토큰과 함께 이전 계정의 캐시 데이터도 지운다.
+pub fn sign_out(state: &AppState) -> Result<(), AppError> {
+    state.auth.logout()?;
+    state.cache.clear()
 }
 
 async fn fetch_month(state: &AppState, year: i32, month: u32) -> Result<MonthData, AppError> {
@@ -147,6 +153,39 @@ pub fn apply_autostart(app: &AppHandle, enabled: bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn state_with_cache(dir: &std::path::Path) -> AppState {
+        use crate::auth::{MemoryStore, OAuthConfig};
+        let cfg = OAuthConfig {
+            client_id: "cid".into(),
+            client_secret: "cs".into(),
+            auth_url: "http://127.0.0.1:1/auth".into(),
+            token_url: "http://127.0.0.1:1/token".into(),
+        };
+        let auth = Arc::new(Auth::new(cfg, Box::new(MemoryStore::with("r1")), reqwest::Client::new()));
+        AppState {
+            google: Google::new(reqwest::Client::new(), auth.clone()),
+            auth,
+            cache: Cache::new(dir.join("cache.json")),
+            settings: Mutex::new(Settings::default()),
+            settings_path: dir.join("settings.json"),
+        }
+    }
+
+    #[test]
+    fn sign_out_clears_token_and_cached_account_data() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = state_with_cache(dir.path());
+        state.cache.put(TASKS_KEY, &vec!["이전 계정 할 일".to_string()]).unwrap();
+        state.cache.put(&month_key(2026, 9), &vec!["이전 계정 일정".to_string()]).unwrap();
+        assert!(state.auth.is_logged_in());
+
+        sign_out(&state).unwrap();
+
+        assert!(!state.auth.is_logged_in());
+        assert_eq!(state.cache.get::<Vec<String>>(TASKS_KEY), None);
+        assert_eq!(state.cache.get::<Vec<String>>(&month_key(2026, 9)), None);
+    }
 
     #[test]
     fn merge_collects_successes_and_failed_ids() {

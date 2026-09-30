@@ -78,6 +78,13 @@ function updateStatus() {
 
 function showLogin(message = "") {
   state.loggedIn = false;
+  // 이전 계정의 일정·할 일이 설정 창이나 다음 로그인 화면에 남지 않게 비운다.
+  state.monthData = null;
+  state.tasksData = null;
+  calEl.innerHTML = "";
+  tasksEl.innerHTML = "";
+  statusEl.textContent = "";
+  overlay.hidden = true;
   app.dataset.auth = "out";
   loginMsg.textContent = message;
 }
@@ -147,6 +154,7 @@ async function loadMonth() {
   const { year, month } = state;
   try {
     const data = await api.getMonth(year, month);
+    if (!state.loggedIn) return;
     if (state.year === year && state.month === month) state.monthData = data;
     render();
   } catch (e) {
@@ -161,6 +169,7 @@ async function refreshAll() {
   state.loading = true;
   try {
     const [m, t] = await Promise.all([api.getMonth(state.year, state.month), api.getTasks()]);
+    if (!state.loggedIn) return; // 응답 전에 로그아웃했으면 버린다
     state.monthData = m;
     state.tasksData = t;
     render();

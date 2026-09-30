@@ -53,7 +53,7 @@ fn handle_menu(app: &AppHandle, id: &str) {
             let _ = app.emit("settings-changed", &updated);
         }
         "logout" => {
-            if let Err(e) = app.state::<AppState>().auth.logout() {
+            if let Err(e) = crate::commands::sign_out(&app.state::<AppState>()) {
                 log::error!("로그아웃 실패: {e}");
             }
             let _ = app.emit("logged-out", ());
