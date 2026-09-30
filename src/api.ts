@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { FontScale, ThemeName } from "./theme";
 
 export type ViewMode = "calendar" | "tasks" | "both";
 
@@ -14,6 +15,9 @@ export interface TasksData { lists: TaskList[]; tasks: Task[]; failed: string[];
 export interface Settings {
   viewMode: ViewMode; hiddenCalendars: string[]; hiddenTaskLists: string[];
   refreshMinutes: number; autostart: boolean; locked: boolean;
+  theme: ThemeName; accent: string | null; opacity: number; fontScale: FontScale;
+  headerMode: "always" | "hover";
+  showDayDetail: boolean; showDue: boolean; showTaskDots: boolean; showBorder: boolean;
 }
 
 export const api = {

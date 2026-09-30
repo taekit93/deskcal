@@ -6,6 +6,7 @@ export interface TaskViewProps {
   tasks: Task[];
   hidden: string[];
   today: string;
+  showDue: boolean;
   isChecked(id: string): boolean;
   onToggle(task: Task): void;
 }
@@ -33,7 +34,7 @@ export function renderTasks(el: HTMLElement, p: TaskViewProps): void {
         const checked = p.isChecked(t.id);
         return `<li class="${checked ? "done" : ""}">
           <label><input type="checkbox" data-task="${esc(t.id)}" ${checked ? "checked" : ""}><span class="title">${esc(t.title)}</span></label>
-          ${t.due ? dueLabel(t.due, p.today) : ""}
+          ${p.showDue && t.due ? dueLabel(t.due, p.today) : ""}
         </li>`;
       }).join("")}</ul>
     </div>`).join("");

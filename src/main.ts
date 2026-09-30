@@ -9,6 +9,7 @@ import { renderTasks } from "./tasks/TaskList";
 import { createCompletion } from "./tasks/task-completion";
 import { renderViewSwitcher } from "./ViewSwitcher";
 import { renderSettings } from "./Settings";
+import { applyTheme } from "./theme";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const app = $("app");
@@ -33,6 +34,14 @@ const state = {
   loggedIn: false,
   loading: false,
 };
+
+const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+function applyAppearance(s: Settings) {
+  applyTheme(app, s, darkQuery.matches);
+  app.dataset.header = s.headerMode;
+  app.dataset.border = String(s.showBorder);
+}
 
 let toastTimer = 0;
 function toast(msg: string) {
@@ -85,6 +94,7 @@ function renderTasksView() {
     tasks: state.tasksData?.tasks ?? [],
     hidden: s.hiddenTaskLists,
     today: dayKey(new Date()),
+    showDue: s.showDue,
     isChecked: completion.isChecked,
     onToggle: (t) => void completion.toggle(t),
   });
@@ -122,6 +132,8 @@ function render() {
     tasks: tasksByDay(visibleTasks),
     colors: new Map((state.monthData?.calendars ?? []).map((c) => [c.id, c.color])),
     selected: state.selected,
+    showDayDetail: s.showDayDetail,
+    showTaskDots: s.showTaskDots,
     onSelect: (k) => {
       state.selected = k;
       render();
@@ -162,7 +174,7 @@ async function refreshAll() {
 }
 
 function applyLock(locked: boolean) {
-  for (const el of [header, statusEl]) {
+  for (const el of [header, statusEl, $("hotspot")]) {
     if (locked) el.removeAttribute("data-tauri-drag-region");
     else el.setAttribute("data-tauri-drag-region", "");
   }
@@ -180,6 +192,7 @@ async function saveSettings(next: Settings) {
   try {
     await api.saveSettings(next);
     state.settings = next;
+    applyAppearance(next);
     applyLock(next.locked);
     resetTimer();
     render();
@@ -190,19 +203,35 @@ async function saveSettings(next: Settings) {
 
 function openSettings() {
   if (!state.settings) return;
+  const original = state.settings;
+  const restore = () => {
+    state.settings = original;
+    applyAppearance(original);
+    render();
+  };
   overlay.hidden = false;
   renderSettings(overlay, {
-    settings: state.settings,
+    settings: original,
+    onPreview: (draft) => {
+      state.settings = draft;
+      applyAppearance(draft);
+      render();
+    },
     calendars: state.monthData?.calendars ?? [],
     lists: state.tasksData?.lists ?? [],
     onSave: async (next) => {
       overlay.hidden = true;
+      state.settings = original;
       await saveSettings(next);
       await refreshAll();
     },
-    onClose: () => (overlay.hidden = true),
+    onClose: () => {
+      overlay.hidden = true;
+      restore();
+    },
     onLogout: async () => {
       overlay.hidden = true;
+      restore();
       await api.logout().catch(() => {});
       showLogin();
     },
@@ -227,6 +256,8 @@ async function doLogin() {
 
 async function init() {
   state.settings = await api.getSettings();
+  applyAppearance(state.settings);
+  darkQuery.addEventListener("change", () => state.settings && applyAppearance(state.settings));
   applyLock(state.settings.locked);
   resetTimer();
   loginBtn.onclick = () => void doLogin();
@@ -237,6 +268,7 @@ async function init() {
   await listen("open-settings", openSettings);
   await listen<Settings>("settings-changed", (e) => {
     state.settings = e.payload;
+    applyAppearance(e.payload);
     applyLock(e.payload.locked);
     render();
   });
