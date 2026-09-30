@@ -22,7 +22,7 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     let icon = app.default_window_icon().cloned().expect("bundle icon is configured");
     TrayIconBuilder::with_id("main")
         .icon(icon)
-        .tooltip("Google 캘린더 위젯")
+        .tooltip("DeskCal")
         .menu(&menu)
         .on_menu_event(|app, event| handle_menu(app, event.id().as_ref()))
         .build(app)?;

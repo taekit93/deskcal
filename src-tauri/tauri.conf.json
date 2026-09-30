@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "gcal-widget",
+  "productName": "DeskCal",
   "version": "0.1.0",
   "identifier": "kr.taekit93.gcalwidget",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "gcal-widget",
+        "title": "DeskCal",
         "width": 420,
         "height": 640,
         "minWidth": 280,
