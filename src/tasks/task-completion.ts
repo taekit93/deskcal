@@ -10,10 +10,23 @@ export interface CompletionDeps {
 
 interface TaskRef { id: string; listId: string }
 
+/** 할 일 하나의 상태. confirmed = 서버에 반영된 값, desired = 사용자가 마지막으로 고른 값. */
+interface Entry { confirmed: boolean; desired: boolean; running: boolean }
+
+/**
+ * 할 일마다 요청을 한 번에 하나만 보낸다(순서 보장). 요청 중에 사용자가 여러 번 눌러도
+ * 마지막 선택만 남기고, 응답이 오면 그 선택이 서버와 다를 때만 다음 요청을 보낸다.
+ */
 export function createCompletion(deps: CompletionDeps) {
   const delay = deps.delayMs ?? 3000;
-  const checked = new Set<string>();
+  const entries = new Map<string, Entry>();
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  const entry = (id: string): Entry => {
+    let e = entries.get(id);
+    if (!e) entries.set(id, (e = { confirmed: false, desired: false, running: false }));
+    return e;
+  };
 
   function cancelRemoval(id: string) {
     const t = timers.get(id);
@@ -27,32 +40,50 @@ export function createCompletion(deps: CompletionDeps) {
     cancelRemoval(id);
     timers.set(id, setTimeout(() => {
       timers.delete(id);
-      checked.delete(id);
+      entries.delete(id);
       deps.onRemove(id);
     }, delay));
   }
 
-  return {
-    isChecked: (id: string) => checked.has(id),
+  async function sync(task: TaskRef, e: Entry): Promise<void> {
+    if (e.running) return;
+    e.running = true;
+    try {
+      while (e.desired !== e.confirmed) {
+        const target = e.desired;
+        try {
+          await deps.setCompleted(task.listId, task.id, target);
+          e.confirmed = target;
+        } catch (err) {
+          // 실패: 화면을 서버 상태로 되돌린다. (요청 중에 사용자가 다른 값을 골랐다면 그 값도 버린다.)
+          e.desired = e.confirmed;
+          deps.onChange();
+          deps.onError(errorText(err));
+          break;
+        }
+      }
+    } finally {
+      e.running = false;
+    }
+    if (entries.get(task.id) === e && e.confirmed && e.desired) scheduleRemoval(task.id);
+  }
 
-    async toggle(task: TaskRef): Promise<void> {
-      const nowChecked = !checked.has(task.id);
-      if (nowChecked) checked.add(task.id);
-      else checked.delete(task.id);
+  return {
+    isChecked: (id: string) => entries.get(id)?.desired ?? false,
+
+    toggle(task: TaskRef): Promise<void> {
+      const e = entry(task.id);
+      e.desired = !e.desired;
       cancelRemoval(task.id);
       deps.onChange();
-      try {
-        await deps.setCompleted(task.listId, task.id, nowChecked);
-      } catch (e) {
-        // 서버 상태는 요청 전 상태 그대로이므로 UI를 되돌린다.
-        if (nowChecked) checked.delete(task.id);
-        else checked.add(task.id);
-        deps.onChange();
-        deps.onError(errorText(e));
-        if (!nowChecked) scheduleRemoval(task.id);
-        return;
-      }
-      if (nowChecked && checked.has(task.id)) scheduleRemoval(task.id);
+      return sync(task, e);
+    },
+
+    /** 로그아웃 등으로 목록이 사라질 때: 예약된 제거와 상태를 모두 잊는다. */
+    reset(): void {
+      for (const t of timers.values()) clearTimeout(t);
+      timers.clear();
+      entries.clear();
     },
   };
 }

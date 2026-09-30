@@ -75,7 +75,8 @@ footer { border-top: 1px solid var(--line); padding-block: 28px 44px; font-size:
       <table>
         <thead><tr><th>권한 (OAuth 스코프)</th><th>접근하는 데이터</th><th>사용 목적</th></tr></thead>
         <tbody>
-          <tr><td><code>calendar.readonly</code></td><td>캘린더 목록, 캘린더 색상, 일정(제목·시간·링크)</td><td>월간 달력과 날짜별 일정 목록 표시. 일정을 만들거나 수정·삭제하지 않습니다.</td></tr>
+          <tr><td><code>calendar.calendarlist.readonly</code></td><td>구독 중인 캘린더 목록(이름·색상)</td><td>일정을 캘린더 색으로 구분하고, 설정에서 캘린더를 켜고 끄기. 캘린더를 추가·삭제하지 않습니다.</td></tr>
+          <tr><td><code>calendar.events.readonly</code></td><td>일정(제목·시간·링크)</td><td>월간 달력과 날짜별 일정 목록 표시. 일정을 만들거나 수정·삭제하지 않습니다.</td></tr>
           <tr><td><code>tasks</code></td><td>할 일 목록, 할 일(제목·마감일·메모·완료 상태)</td><td>할 일 목록 표시, 사용자가 체크한 할 일을 완료 또는 미완료로 변경</td></tr>
         </tbody>
       </table>
@@ -84,7 +85,8 @@ footer { border-top: 1px solid var(--line); padding-block: 28px 44px; font-size:
     <h2>2. 데이터 저장 위치</h2>
     <ul>
       <li><b>로그인 토큰(refresh token):</b> Windows 자격 증명 관리자에 저장됩니다. Windows가 사용자 계정 기준으로 암호화합니다.</li>
-      <li><b>캐시:</b> 오프라인에서도 마지막 화면을 보여주기 위해, 받아 온 일정과 할 일을 <code>%APPDATA%\kr.taekit93.gcalwidget\cache.json</code>에 저장합니다.</li>
+      <li><b>캐시:</b> 오프라인에서도 마지막 화면을 보여주기 위해, 받아 온 일정과 할 일을 <code>%APPDATA%\kr.taekit93.gcalwidget\cache.json</code>에 저장합니다. 로그아웃하거나 로그인이 만료되면 지워집니다.</li>
+      <li><b>로그:</b> 문제 해결을 위해 <code>%LOCALAPPDATA%\kr.taekit93.gcalwidget\logs\</code>에 오류 기록을 남깁니다. 캘린더 ID(보통 이메일 주소 형태)와 Google이 돌려준 오류 메시지가 들어갈 수 있습니다. 파일이 1MB를 넘으면 새로 시작합니다.</li>
       <li><b>설정:</b> 보기 모드, 테마, 숨긴 캘린더 등은 같은 폴더의 <code>settings.json</code>에 저장됩니다.</li>
       <li>이 데이터는 사용자의 PC를 벗어나지 않습니다.</li>
     </ul>
@@ -97,8 +99,8 @@ footer { border-top: 1px solid var(--line); padding-block: 28px 44px; font-size:
 
     <h2>5. 데이터 삭제와 권한 철회</h2>
     <ul>
-      <li>위젯 설정 또는 트레이 메뉴에서 <b>로그아웃</b>하면 저장된 로그인 토큰이 삭제됩니다.</li>
-      <li>캐시와 설정은 <code>%APPDATA%\kr.taekit93.gcalwidget\</code> 폴더를 지우면 삭제됩니다. 앱을 제거한 뒤 지우면 됩니다.</li>
+      <li>위젯 설정 또는 트레이 메뉴에서 <b>로그아웃</b>하면, 앱이 Google에 토큰 철회를 요청한 뒤 PC에 저장된 로그인 토큰과 캐시를 삭제합니다.</li>
+      <li>설정과 로그는 <code>%APPDATA%\kr.taekit93.gcalwidget\</code> 폴더와 <code>%LOCALAPPDATA%\kr.taekit93.gcalwidget\</code> 폴더를 지우면 삭제됩니다. 앱을 제거한 뒤 지우면 됩니다.</li>
       <li><a href="https://myaccount.google.com/permissions">Google 계정의 서드파티 액세스 설정</a>에서 언제든 DeskCal의 권한을 철회할 수 있습니다.</li>
     </ul>
 
@@ -123,7 +125,8 @@ footer { border-top: 1px solid var(--line); padding-block: 28px 44px; font-size:
       <table>
         <thead><tr><th>Permission (OAuth scope)</th><th>Data accessed</th><th>Purpose</th></tr></thead>
         <tbody>
-          <tr><td><code>calendar.readonly</code></td><td>Calendar list, calendar colors, events (title, time, link)</td><td>Show the month view and each day's events. The app never creates, edits or deletes events.</td></tr>
+          <tr><td><code>calendar.calendarlist.readonly</code></td><td>Your subscribed calendars (names and colors)</td><td>Color-code events by calendar and let you show or hide calendars. The app never adds or removes calendars.</td></tr>
+          <tr><td><code>calendar.events.readonly</code></td><td>Events (title, time, link)</td><td>Show the month view and each day's events. The app never creates, edits or deletes events.</td></tr>
           <tr><td><code>tasks</code></td><td>Task lists and tasks (title, due date, notes, status)</td><td>Show tasks and mark tasks you check as completed or not completed</td></tr>
         </tbody>
       </table>
@@ -132,7 +135,8 @@ footer { border-top: 1px solid var(--line); padding-block: 28px 44px; font-size:
     <h2>2. Where data is stored</h2>
     <ul>
       <li><b>Sign-in token (refresh token):</b> stored in Windows Credential Manager, encrypted by Windows for your user account.</li>
-      <li><b>Cache:</b> fetched events and tasks are saved to <code>%APPDATA%\kr.taekit93.gcalwidget\cache.json</code> so the last view is available offline.</li>
+      <li><b>Cache:</b> fetched events and tasks are saved to <code>%APPDATA%\kr.taekit93.gcalwidget\cache.json</code> so the last view is available offline. It is deleted when you sign out or your sign-in expires.</li>
+      <li><b>Logs:</b> error logs for troubleshooting are written to <code>%LOCALAPPDATA%\kr.taekit93.gcalwidget\logs\</code>. They may contain calendar IDs (often in email-address form) and error messages returned by Google. A log file starts over once it exceeds 1 MB.</li>
       <li><b>Settings:</b> view mode, theme, hidden calendars and similar options are saved to <code>settings.json</code> in the same folder.</li>
       <li>None of this data leaves your PC.</li>
     </ul>
@@ -145,8 +149,8 @@ footer { border-top: 1px solid var(--line); padding-block: 28px 44px; font-size:
 
     <h2>5. Deleting data and revoking access</h2>
     <ul>
-      <li>Signing out from the widget settings or the tray menu deletes the stored sign-in token.</li>
-      <li>Delete the <code>%APPDATA%\kr.taekit93.gcalwidget\</code> folder to remove the cache and settings, for example after uninstalling.</li>
+      <li>Signing out from the widget settings or the tray menu asks Google to revoke the token, then deletes the sign-in token and the cache from your PC.</li>
+      <li>Delete the <code>%APPDATA%\kr.taekit93.gcalwidget\</code> and <code>%LOCALAPPDATA%\kr.taekit93.gcalwidget\</code> folders to remove settings and logs, for example after uninstalling.</li>
       <li>You can revoke DeskCal's access anytime in <a href="https://myaccount.google.com/permissions">your Google Account's third-party access settings</a>.</li>
     </ul>
 

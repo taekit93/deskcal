@@ -53,10 +53,15 @@ fn handle_menu(app: &AppHandle, id: &str) {
             let _ = app.emit("settings-changed", &updated);
         }
         "logout" => {
-            if let Err(e) = crate::commands::sign_out(&app.state::<AppState>()) {
-                log::error!("로그아웃 실패: {e}");
-            }
-            let _ = app.emit("logged-out", ());
+            let app = app.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = crate::commands::sign_out(&app.state::<AppState>()).await {
+                    log::error!("로그아웃 실패: {e}");
+                    let _ = app.emit("logout-failed", e.to_string());
+                    return;
+                }
+                let _ = app.emit("logged-out", ());
+            });
         }
         "quit" => app.exit(0),
         _ => {}

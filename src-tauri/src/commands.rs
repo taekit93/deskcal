@@ -66,13 +66,13 @@ pub async fn login(app: AppHandle, state: State<'_, AppState>) -> Result<(), App
 }
 
 #[tauri::command]
-pub fn logout(state: State<'_, AppState>) -> Result<(), AppError> {
-    sign_out(&state)
+pub async fn logout(state: State<'_, AppState>) -> Result<(), AppError> {
+    sign_out(&state).await
 }
 
 /// 로그아웃: 토큰과 함께 이전 계정의 캐시 데이터도 지운다.
-pub fn sign_out(state: &AppState) -> Result<(), AppError> {
-    state.auth.logout()?;
+pub async fn sign_out(state: &AppState) -> Result<(), AppError> {
+    state.auth.logout().await?;
     state.cache.clear()
 }
 
@@ -134,12 +134,18 @@ pub fn get_settings(state: State<'_, AppState>) -> Settings {
 }
 
 #[tauri::command]
-pub fn save_settings(app: AppHandle, state: State<'_, AppState>, settings: Settings) -> Result<(), AppError> {
+pub fn save_settings(app: AppHandle, state: State<'_, AppState>, settings: Settings) -> Result<Settings, AppError> {
+    let saved = persist_settings(&state, settings)?;
+    apply_autostart(&app, saved.autostart);
+    Ok(saved)
+}
+
+/// 설정을 검증·저장하고, 실제로 저장된 값을 돌려준다 (화면은 이 값을 기준으로 삼는다).
+pub fn persist_settings(state: &AppState, settings: Settings) -> Result<Settings, AppError> {
     let settings = settings.normalized();
     settings::save(&state.settings_path, &settings)?;
     *state.settings.lock().unwrap() = settings.clone();
-    apply_autostart(&app, settings.autostart);
-    Ok(())
+    Ok(settings)
 }
 
 pub fn apply_autostart(app: &AppHandle, enabled: bool) {
@@ -161,6 +167,7 @@ mod tests {
             client_secret: "cs".into(),
             auth_url: "http://127.0.0.1:1/auth".into(),
             token_url: "http://127.0.0.1:1/token".into(),
+            revoke_url: "http://127.0.0.1:1/revoke".into(),
         };
         let auth = Arc::new(Auth::new(cfg, Box::new(MemoryStore::with("r1")), reqwest::Client::new()));
         AppState {
@@ -173,14 +180,25 @@ mod tests {
     }
 
     #[test]
-    fn sign_out_clears_token_and_cached_account_data() {
+    fn persist_settings_returns_and_stores_the_normalized_value() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = state_with_cache(dir.path());
+        let saved = persist_settings(&state, Settings { refresh_minutes: 0, accent: Some("bad".into()), ..Settings::default() }).unwrap();
+        assert_eq!(saved.refresh_minutes, 1);
+        assert_eq!(saved.accent, None);
+        assert_eq!(*state.settings.lock().unwrap(), saved);
+        assert_eq!(settings::load(&state.settings_path), saved);
+    }
+
+    #[tokio::test]
+    async fn sign_out_clears_token_and_cached_account_data() {
         let dir = tempfile::tempdir().unwrap();
         let state = state_with_cache(dir.path());
         state.cache.put(TASKS_KEY, &vec!["이전 계정 할 일".to_string()]).unwrap();
         state.cache.put(&month_key(2026, 9), &vec!["이전 계정 일정".to_string()]).unwrap();
         assert!(state.auth.is_logged_in());
 
-        sign_out(&state).unwrap();
+        sign_out(&state).await.unwrap();
 
         assert!(!state.auth.is_logged_in());
         assert_eq!(state.cache.get::<Vec<String>>(TASKS_KEY), None);

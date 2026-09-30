@@ -11,8 +11,8 @@ use tokio::net::TcpListener;
 
 use crate::error::AppError;
 
-pub const SCOPES: &str =
-    "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks";
+/// 필요한 최소 권한: 캘린더 목록(calendarList.list), 일정 읽기(events.list), 할 일 읽기·완료(tasks).
+pub const SCOPES: &str = "https://www.googleapis.com/auth/calendar.calendarlist.readonly https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/tasks";
 const LOGIN_TIMEOUT: Duration = Duration::from_secs(300);
 
 #[derive(Clone)]
@@ -21,6 +21,7 @@ pub struct OAuthConfig {
     pub client_secret: String,
     pub auth_url: String,
     pub token_url: String,
+    pub revoke_url: String,
 }
 
 impl OAuthConfig {
@@ -30,6 +31,7 @@ impl OAuthConfig {
             client_secret: option_env!("GOOGLE_CLIENT_SECRET").unwrap_or("").to_string(),
             auth_url: "https://accounts.google.com/o/oauth2/v2/auth".into(),
             token_url: "https://oauth2.googleapis.com/token".into(),
+            revoke_url: "https://oauth2.googleapis.com/revoke".into(),
         }
     }
 }
@@ -131,8 +133,17 @@ impl Auth {
         *self.cached.lock().unwrap() = None;
     }
 
-    pub fn logout(&self) -> Result<(), AppError> {
+    /// 로그아웃: Google에서 refresh token을 철회(실패해도 계속)하고 로컬 토큰을 지운다.
+    pub async fn logout(&self) -> Result<(), AppError> {
         self.invalidate();
+        if let Some(token) = self.store.get()? {
+            let revoked = self.http.post(&self.cfg.revoke_url).form(&[("token", token.as_str())]).send().await;
+            match revoked {
+                Ok(r) if r.status().is_success() => {}
+                Ok(r) => log::warn!("토큰 철회 응답: {}", r.status()),
+                Err(e) => log::warn!("토큰 철회 실패: {e}"),
+            }
+        }
         self.store.delete()
     }
 
@@ -264,11 +275,12 @@ pub(crate) fn parse_callback(request_line: &str, expected_state: &str) -> Callba
         return CallbackResult::Ignore;
     }
     let q: HashMap<String, String> = url.query_pairs().into_owned().collect();
+    // state가 다르면 무시한다: 다른 로컬 프로세스가 로그인을 끝내 버리지 못하게.
+    if q.get("state").map(String::as_str) != Some(expected_state) {
+        return CallbackResult::Ignore;
+    }
     if let Some(err) = q.get("error") {
         return CallbackResult::Done(Err(AppError::Login(err.clone())));
-    }
-    if q.get("state").map(String::as_str) != Some(expected_state) {
-        return CallbackResult::Done(Err(AppError::Login("state 불일치".into())));
     }
     match q.get("code") {
         Some(code) => CallbackResult::Done(Ok(code.clone())),
@@ -276,32 +288,52 @@ pub(crate) fn parse_callback(request_line: &str, expected_state: &str) -> Callba
     }
 }
 
+const CRLF: &str = "\r\n";
+const NOT_FOUND: &[u8] = b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+const OK_HEAD: &str = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nConnection: close\r\n";
+
+/// 연결마다 별도 작업으로 처리한다. 브라우저가 미리 열어 둔 빈 연결이 진짜 콜백을 막지 않게.
 async fn wait_for_code(listener: &TcpListener, state: &str) -> Result<String, AppError> {
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<String, AppError>>(1);
     loop {
-        let (mut sock, _) = listener.accept().await.map_err(|e| AppError::Login(e.to_string()))?;
-        let mut buf = vec![0u8; 4096];
-        let n = sock.read(&mut buf).await.unwrap_or(0);
-        let request = String::from_utf8_lossy(&buf[..n]).to_string();
-        let line = request.lines().next().unwrap_or("");
-        match parse_callback(line, state) {
-            CallbackResult::Ignore => {
-                let _ = sock.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").await;
+        tokio::select! {
+            accepted = listener.accept() => {
+                let (sock, _) = accepted.map_err(|e| AppError::Login(e.to_string()))?;
+                let (tx, state) = (tx.clone(), state.to_string());
+                tokio::spawn(async move {
+                    if let Some(result) = handle_callback_conn(sock, &state).await {
+                        let _ = tx.send(result).await;
+                    }
+                });
             }
-            CallbackResult::Done(result) => {
-                let msg = if result.is_ok() {
-                    "로그인 완료. 이 창을 닫아도 됩니다."
-                } else {
-                    "로그인 실패. 위젯에서 다시 시도해 주세요."
-                };
-                let body = format!("<!doctype html><meta charset=\"utf-8\"><title>gcal-widget</title><p style=\"font:16px sans-serif\">{msg}</p>");
-                let resp = format!(
-                    "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                    body.len(),
-                    body
-                );
-                let _ = sock.write_all(resp.as_bytes()).await;
-                return result;
-            }
+            Some(result) = rx.recv() => return result,
+        }
+    }
+}
+
+async fn handle_callback_conn(mut sock: tokio::net::TcpStream, state: &str) -> Option<Result<String, AppError>> {
+    let mut buf = vec![0u8; 4096];
+    let n = match tokio::time::timeout(Duration::from_secs(10), sock.read(&mut buf)).await {
+        Ok(Ok(n)) => n,
+        _ => return None,
+    };
+    let request = String::from_utf8_lossy(&buf[..n]).to_string();
+    let line = request.lines().next().unwrap_or("");
+    match parse_callback(line, state) {
+        CallbackResult::Ignore => {
+            let _ = sock.write_all(NOT_FOUND).await;
+            None
+        }
+        CallbackResult::Done(result) => {
+            let msg = if result.is_ok() {
+                "로그인 완료. 이 창을 닫아도 됩니다."
+            } else {
+                "로그인 실패. 위젯에서 다시 시도해 주세요."
+            };
+            let body = format!("<!doctype html><meta charset=\"utf-8\"><title>DeskCal</title><p style=\"font:16px sans-serif\">{msg}</p>");
+            let resp = format!("{OK_HEAD}Content-Length: {}{CRLF}{CRLF}{}", body.len(), body);
+            let _ = sock.write_all(resp.as_bytes()).await;
+            Some(result)
         }
     }
 }
@@ -319,6 +351,7 @@ mod tests {
             client_secret: "csecret".into(),
             auth_url: format!("{uri}/auth"),
             token_url: format!("{uri}/token"),
+            revoke_url: format!("{uri}/revoke"),
         }
     }
 
@@ -363,9 +396,23 @@ mod tests {
     }
 
     #[test]
-    fn callback_with_wrong_state_fails() {
+    fn scopes_are_the_narrowest_the_app_needs() {
+        let mut s: Vec<&str> = SCOPES.split(' ').collect();
+        s.sort();
+        assert_eq!(s, vec![
+            "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+            "https://www.googleapis.com/auth/calendar.events.readonly",
+            "https://www.googleapis.com/auth/tasks",
+        ]);
+    }
+
+    #[test]
+    fn callback_with_wrong_state_is_ignored() {
+        // 다른 로컬 프로세스가 잘못된 state로 로그인을 끝내 버리지 못하게 한다.
         let r = parse_callback("GET /?state=evil&code=x HTTP/1.1", "abc");
-        assert!(matches!(r, CallbackResult::Done(Err(AppError::Login(_)))), "{r:?}");
+        assert!(matches!(r, CallbackResult::Ignore), "{r:?}");
+        let r = parse_callback("GET /?state=evil&error=access_denied HTTP/1.1", "abc");
+        assert!(matches!(r, CallbackResult::Ignore), "{r:?}");
     }
 
     #[test]
@@ -457,6 +504,57 @@ mod tests {
         .unwrap();
         assert!(auth.is_logged_in());
         assert_eq!(auth.access_token().await.unwrap(), "at");
+    }
+
+    #[tokio::test]
+    async fn login_is_not_blocked_by_an_idle_browser_connection() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/token"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                json!({"access_token": "at", "expires_in": 3600, "refresh_token": "r2"}),
+            ))
+            .mount(&server)
+            .await;
+        let auth = Auth::new(cfg_for(&server.uri()), Box::new(MemoryStore::empty()), reqwest::Client::new());
+        let login = auth.login(|url| {
+            let q = query(url);
+            let redirect = q["redirect_uri"].clone();
+            let target = format!("{redirect}/?code=abc&state={}", q["state"]);
+            tokio::spawn(async move {
+                // 브라우저의 예비 연결처럼, 연결만 열고 아무것도 보내지 않는다.
+                let addr = redirect.trim_start_matches("http://").to_string();
+                let _idle = tokio::net::TcpStream::connect(addr).await.unwrap();
+                tokio::time::sleep(Duration::from_millis(50)).await;
+                let _ = reqwest::get(target).await;
+                tokio::time::sleep(Duration::from_secs(30)).await; // idle 연결 유지
+            });
+            Ok(())
+        });
+        tokio::time::timeout(Duration::from_secs(5), login).await.expect("login hung on idle connection").unwrap();
+        assert!(auth.is_logged_in());
+    }
+
+    #[tokio::test]
+    async fn logout_revokes_the_refresh_token_at_google() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/revoke"))
+            .and(body_string_contains("token=r1"))
+            .respond_with(ResponseTemplate::new(200))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let auth = Auth::new(cfg_for(&server.uri()), Box::new(MemoryStore::with("r1")), reqwest::Client::new());
+        auth.logout().await.unwrap();
+        assert!(!auth.is_logged_in());
+    }
+
+    #[tokio::test]
+    async fn logout_signs_out_locally_even_if_revoke_fails() {
+        let auth = Auth::new(cfg_for("http://127.0.0.1:1"), Box::new(MemoryStore::with("r1")), reqwest::Client::new());
+        auth.logout().await.unwrap();
+        assert!(!auth.is_logged_in());
     }
 
     #[tokio::test]

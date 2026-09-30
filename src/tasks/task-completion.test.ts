@@ -8,6 +8,8 @@ function setup(setCompleted = vi.fn().mockResolvedValue(undefined)) {
   return { deps, c: createCompletion(deps) };
 }
 
+const flush = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
+
 describe("createCompletion", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
@@ -84,5 +86,52 @@ describe("createCompletion", () => {
     expect(deps.onError).toHaveBeenCalled();
     vi.advanceTimersByTime(3000);
     expect(deps.onRemove).toHaveBeenCalledWith("a");
+  });
+
+  it("never has two requests for one task in flight, and the last choice wins", async () => {
+    const resolvers: (() => void)[] = [];
+    const setCompleted = vi.fn(() => new Promise<void>((r) => resolvers.push(r)));
+    const { deps, c } = setup(setCompleted);
+    const first = c.toggle(task("a")); // 체크
+    void c.toggle(task("a")); // 응답 전에 해제
+    void c.toggle(task("a")); // 다시 체크
+    void c.toggle(task("a")); // 다시 해제 (최종 의도: 미완료)
+    expect(setCompleted).toHaveBeenCalledTimes(1);
+    resolvers[0](); // 서버: 완료됨
+    await flush();
+    expect(setCompleted).toHaveBeenCalledTimes(2);
+    expect(setCompleted).toHaveBeenLastCalledWith("L", "a", false);
+    resolvers[1](); // 서버: 미완료로 되돌림
+    await first;
+    vi.advanceTimersByTime(5000);
+    expect(deps.onRemove).not.toHaveBeenCalled();
+    expect(c.isChecked("a")).toBe(false);
+  });
+
+  it("after a failed request the checkbox matches what the server has", async () => {
+    let rejectFirst!: (e: unknown) => void;
+    const setCompleted = vi.fn()
+      .mockImplementationOnce(() => new Promise<void>((_, rej) => (rejectFirst = rej)))
+      .mockResolvedValue(undefined);
+    const { deps, c } = setup(setCompleted);
+    const first = c.toggle(task("a")); // 체크 (실패할 요청)
+    void c.toggle(task("a")); // 해제
+    void c.toggle(task("a")); // 다시 체크
+    rejectFirst({ kind: "Network" });
+    await first;
+    expect(setCompleted).toHaveBeenCalledTimes(1);
+    expect(c.isChecked("a")).toBe(false); // 서버는 여전히 미완료
+    expect(deps.onError).toHaveBeenCalledWith("네트워크 오류");
+    vi.advanceTimersByTime(5000);
+    expect(deps.onRemove).not.toHaveBeenCalled();
+  });
+
+  it("reset forgets pending removals (used on logout)", async () => {
+    const { deps, c } = setup();
+    await c.toggle(task("a"));
+    c.reset();
+    vi.advanceTimersByTime(5000);
+    expect(deps.onRemove).not.toHaveBeenCalled();
+    expect(c.isChecked("a")).toBe(false);
   });
 });

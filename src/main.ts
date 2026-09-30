@@ -81,6 +81,7 @@ function showLogin(message = "") {
   // 이전 계정의 일정·할 일이 설정 창이나 다음 로그인 화면에 남지 않게 비운다.
   state.monthData = null;
   state.tasksData = null;
+  completion.reset();
   calEl.innerHTML = "";
   tasksEl.innerHTML = "";
   statusEl.textContent = "";
@@ -167,10 +168,12 @@ let lastRefresh = 0;
 async function refreshAll() {
   if (!state.loggedIn || state.loading) return;
   state.loading = true;
+  const { year, month } = state;
   try {
-    const [m, t] = await Promise.all([api.getMonth(state.year, state.month), api.getTasks()]);
+    const [m, t] = await Promise.all([api.getMonth(year, month), api.getTasks()]);
     if (!state.loggedIn) return; // 응답 전에 로그아웃했으면 버린다
-    state.monthData = m;
+    // 응답 전에 다른 달로 이동했으면 그 달 데이터는 loadMonth가 채운다.
+    if (state.year === year && state.month === month) state.monthData = m;
     state.tasksData = t;
     render();
   } catch (e) {
@@ -199,10 +202,10 @@ function resetTimer() {
 
 async function saveSettings(next: Settings) {
   try {
-    await api.saveSettings(next);
-    state.settings = next;
-    applyAppearance(next);
-    applyLock(next.locked);
+    const saved = await api.saveSettings(next); // 백엔드가 검증한 값을 기준으로 삼는다
+    state.settings = saved;
+    applyAppearance(saved);
+    applyLock(saved.locked);
     resetTimer();
     render();
   } catch (e) {
@@ -241,8 +244,12 @@ function openSettings() {
     onLogout: async () => {
       overlay.hidden = true;
       restore();
-      await api.logout().catch(() => {});
-      showLogin();
+      try {
+        await api.logout();
+        showLogin();
+      } catch (e) {
+        toast(`로그아웃 실패: ${errorText(e)}`);
+      }
     },
   });
 }
@@ -282,6 +289,7 @@ async function init() {
     render();
   });
   await listen("logged-out", () => showLogin());
+  await listen<string>("logout-failed", (e) => toast(`로그아웃 실패: ${e.payload}`));
 
   // 절전 복귀 감지: 30초 틱이 90초 넘게 밀리면 새로고침.
   let lastTick = Date.now();

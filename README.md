@@ -27,7 +27,8 @@
 
 DeskCal에는 서버가 없습니다. 앱은 PC에서 Google API와 직접 통신합니다.
 - 로그인 토큰은 Windows 자격 증명 관리자에, 설정과 캐시는 `%APPDATA%\kr.taekit93.gcalwidget\`에 저장됩니다.
-- 요청 권한은 `calendar.readonly`(일정 읽기)와 `tasks`(할 일 읽기와 완료 처리) 두 가지입니다.
+- 요청 권한은 `calendar.calendarlist.readonly`(캘린더 목록), `calendar.events.readonly`(일정 읽기), `tasks`(할 일 읽기와 완료 처리) 세 가지입니다.
+- 로그아웃하면 Google에 토큰 철회를 요청하고, PC의 토큰과 캐시를 지웁니다.
 
 자세한 내용은 [개인정보처리방침](https://taekit93.github.io/deskcal/privacy.html)을 참고하세요.
 
@@ -37,7 +38,7 @@ DeskCal에는 서버가 없습니다. 앱은 PC에서 Google API와 직접 통�
 
 1. **Google Cloud에서 OAuth 클라이언트 만들기**
    1. [Google Cloud Console](https://console.cloud.google.com)에서 프로젝트를 만들고 **Google Calendar API**, **Google Tasks API**를 사용 설정합니다.
-   2. OAuth 동의 화면을 설정합니다(외부, 스코프 `calendar.readonly`, `tasks`). 테스트 상태로 두면 7일마다 다시 로그인해야 하므로, 본인만 쓸 때도 "앱 게시"를 권장합니다.
+   2. OAuth 동의 화면을 설정합니다(외부, 스코프 `calendar.calendarlist.readonly`, `calendar.events.readonly`, `tasks`). 테스트 상태로 두면 7일마다 다시 로그인해야 하므로, 본인만 쓸 때도 "앱 게시"를 권장합니다.
    3. 사용자 인증 정보 → OAuth 클라이언트 ID → 애플리케이션 유형 **데스크톱 앱**
 2. `.env.example`을 `.env`로 복사하고 클라이언트 ID와 시크릿을 넣습니다. `.env`는 git에 올라가지 않습니다.
 3. 빌드와 실행

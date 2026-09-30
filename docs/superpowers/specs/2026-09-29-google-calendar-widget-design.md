@@ -114,7 +114,7 @@ google-calendar-widget/
 2. 앱이 `127.0.0.1:<임의 포트>`에 일회성 HTTP 리스너를 열고, 기본 브라우저로 동의 화면을 연다 (PKCE + state 검증).
 3. 인증 코드를 교환한 뒤 refresh token을 keyring에 저장한다. access token은 메모리에만 둔다.
 4. 스코프:
-   - `https://www.googleapis.com/auth/calendar.readonly`
+   - ~~`https://www.googleapis.com/auth/calendar.readonly`~~ → 공개 전 검토에서 최소 권한으로 변경: `calendar.calendarlist.readonly`(calendarList.list) + `calendar.events.readonly`(events.list)
    - `https://www.googleapis.com/auth/tasks` (완료 처리에 쓰기 권한 필요)
 
 ### 데이터 조회

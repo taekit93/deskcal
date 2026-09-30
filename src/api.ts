@@ -31,5 +31,5 @@ export const api = {
   setTaskCompleted: (listId: string, taskId: string, completed: boolean) =>
     invoke<void>("set_task_completed", { listId, taskId, completed }),
   getSettings: () => invoke<Settings>("get_settings"),
-  saveSettings: (settings: Settings) => invoke<void>("save_settings", { settings }),
+  saveSettings: (settings: Settings) => invoke<Settings>("save_settings", { settings }),
 };

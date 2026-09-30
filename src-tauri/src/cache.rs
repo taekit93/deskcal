@@ -75,6 +75,13 @@ pub fn with_fallback<T: Serialize + DeserializeOwned>(
             }
             None => Err(AppError::Network(msg)),
         },
+        // 세션이 만료·철회되면 다음 로그인이 다른 계정일 수 있으므로 이전 계정 캐시를 지운다.
+        Err(AppError::AuthExpired) => {
+            if let Err(e) = cache.clear() {
+                log::warn!("cache clear failed: {e}");
+            }
+            Err(AppError::AuthExpired)
+        }
         Err(e) => Err(e),
     }
 }
@@ -156,6 +163,16 @@ mod tests {
         let (_d, c) = cache();
         let out = with_fallback::<Snap>(&c, "k", Err(AppError::Network("down".into())), |s| s.stale = true);
         assert!(matches!(out, Err(AppError::Network(_))));
+    }
+
+    #[test]
+    fn fallback_auth_expired_clears_previous_account_cache() {
+        let (_d, c) = cache();
+        c.put("k", &snap(&["old"])).unwrap();
+        c.put("other-month", &snap(&["old2"])).unwrap();
+        let out = with_fallback::<Snap>(&c, "k", Err(AppError::AuthExpired), |s| s.stale = true);
+        assert!(matches!(out, Err(AppError::AuthExpired)));
+        assert_eq!(c.get::<Snap>("other-month"), None);
     }
 
     #[test]

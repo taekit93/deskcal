@@ -328,14 +328,15 @@ footer .legal { margin-left: auto; }
           <li><span lang="ko">로그인 토큰은 Windows 자격 증명 관리자에 암호화되어 저장됩니다.</span><span lang="en">Your sign-in token is stored encrypted in Windows Credential Manager.</span></li>
           <li><span lang="ko">일정과 할 일은 오프라인 표시를 위해 내 PC에만 임시 저장됩니다.</span><span lang="en">Events and tasks are cached only on your PC so they show while offline.</span></li>
           <li><span lang="ko">분석 도구, 광고, 사용 통계 수집이 없습니다.</span><span lang="en">No analytics, ads or usage tracking.</span></li>
-          <li><span lang="ko">로그아웃하면 저장된 토큰이 지워집니다. Google 계정 설정에서 언제든 권한을 철회할 수 있습니다.</span><span lang="en">Signing out deletes the stored token. You can revoke access anytime in your Google Account settings.</span></li>
+          <li><span lang="ko">로그아웃하면 Google에 권한 철회를 요청하고, PC의 토큰과 캐시를 지웁니다.</span><span lang="en">Signing out revokes access at Google and deletes the token and cache from your PC.</span></li>
         </ul>
         <div>
           <div class="table-scroll">
             <table class="scopes">
               <thead><tr><th><span lang="ko">요청 권한</span><span lang="en">Permission</span></th><th><span lang="ko">사용 목적</span><span lang="en">Used for</span></th></tr></thead>
               <tbody>
-                <tr><td><code>calendar.readonly</code></td><td><span lang="ko">캘린더 목록과 일정을 읽어 달력에 표시 (수정하지 않음)</span><span lang="en">Read calendars and events to show them (never modified)</span></td></tr>
+                <tr><td><code>calendar.calendarlist.readonly</code></td><td><span lang="ko">캘린더 목록과 색을 읽어 일정을 구분 (수정하지 않음)</span><span lang="en">Read your calendar list and colors (never modified)</span></td></tr>
+                <tr><td><code>calendar.events.readonly</code></td><td><span lang="ko">일정을 읽어 달력에 표시 (수정하지 않음)</span><span lang="en">Read events to show them (never modified)</span></td></tr>
                 <tr><td><code>tasks</code></td><td><span lang="ko">할 일 목록을 읽고, 체크한 할 일을 완료로 표시</span><span lang="en">Read task lists and mark checked tasks as completed</span></td></tr>
               </tbody>
             </table>

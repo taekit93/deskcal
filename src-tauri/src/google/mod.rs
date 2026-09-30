@@ -110,6 +110,7 @@ pub(crate) mod test_support {
             client_secret: "cs".into(),
             auth_url: format!("{}/auth", server.uri()),
             token_url: format!("{}/token", server.uri()),
+            revoke_url: format!("{}/revoke", server.uri()),
         };
         let auth = Arc::new(Auth::new(cfg, Box::new(MemoryStore::with("r1")), reqwest::Client::new()));
         let google = Google::with_base(reqwest::Client::new(), auth, &server.uri());
