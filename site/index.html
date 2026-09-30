@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DeskCal</title>
+<meta name="description" content="DeskCal은 Google 캘린더와 Google Tasks를 Windows 바탕화면에 위젯으로 보여주는 앱입니다.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* Layout: 위에서 내려다본 책상 — 첫 화면은 실제 위젯이 놓인 Windows 바탕화면, 아래는 조용한 제품 설명서. */
+:root {
+  --paper: #f3f5f2;
+  --surface: #ffffff;
+  --ink: #17211c;
+  --muted: #56655e;
+  --line: #d8dfda;
+  --accent: #0d7a63;
+  --accent-ink: #ffffff;
+  --desk-a: #163431;
+  --desk-b: #2c4f45;
+  --desk-glow: #d9a441;
+  --font-display: "Bricolage Grotesque", "IBM Plex Sans KR", "Segoe UI", sans-serif;
+  --font-body: "IBM Plex Sans KR", "Segoe UI", "Malgun Gothic", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+  --measure: 62ch;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0e1311; --surface: #161d1a; --ink: #e6ede9; --muted: #98a8a0; --line: #27322d;
+    --accent: #52cfa9; --accent-ink: #06231b; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0e1311; --surface: #161d1a; --ink: #e6ede9; --muted: #98a8a0; --line: #27322d;
+  --accent: #52cfa9; --accent-ink: #06231b; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.7 var(--font-body); -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+/* 언어 전환: .page[data-lang] 에 맞는 쪽만 보인다 */
+.page[data-lang="ko"] [lang="en"], .page[data-lang="en"] [lang="ko"] { display: none !important; }
+
+.wrap { width: 100%; max-width: 1120px; margin-inline: auto; padding-inline: 20px; }
+
+/* ── 상단 ── */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: color-mix(in srgb, var(--paper) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; align-items: center; gap: 20px; padding-block: 12px; }
+.wordmark { font: 800 22px/1 var(--font-display); letter-spacing: -0.03em; color: var(--ink); text-decoration: none; display: flex; align-items: center; gap: 8px; }
+.wordmark svg { flex: none; }
+.nav { display: flex; gap: 18px; margin-left: auto; font-size: 14px; }
+.nav a { color: var(--muted); text-decoration: none; }
+.nav a:hover { color: var(--ink); }
+.lang { display: flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
+.lang button { font: 500 12px/1 var(--font-mono); letter-spacing: 0.06em; color: var(--muted); background: none; border: 0; padding: 6px 10px; border-radius: 999px; cursor: pointer; }
+.lang button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+@media (max-width: 720px) { .nav { display: none; } .lang { margin-left: auto; } }
+
+/* ── 첫 화면 ── */
+.hero { padding-block: 56px 32px; display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 48px; align-items: center; }
+@media (max-width: 900px) { .hero { grid-template-columns: minmax(0, 1fr); padding-block: 36px 20px; gap: 32px; } }
+.eyebrow { font: 500 12px/1 var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin: 0 0 18px; }
+h1 { font: 700 clamp(34px, 5vw, 54px)/1.18 var(--font-body); letter-spacing: -0.035em; margin: 0 0 20px; text-wrap: balance; }
+h1 .en-display { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.04em; }
+.lead { font-size: 18px; color: var(--muted); max-width: 46ch; margin: 0 0 28px; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.btn { display: inline-flex; align-items: center; gap: 8px; font: 500 15px/1 var(--font-body); padding: 13px 20px; border-radius: 10px; text-decoration: none; border: 1px solid var(--line); color: var(--ink); background: var(--surface); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
+.req { font: 400 13px/1.5 var(--font-mono); color: var(--muted); margin-top: 18px; }
+
+/* 바탕화면 목업 */
+.desk {
+  position: relative; border-radius: 16px; overflow: hidden; height: 600px; min-width: 0;
+  background:
+    radial-gradient(120% 80% at 85% 110%, color-mix(in srgb, var(--desk-glow) 55%, transparent) 0%, transparent 55%),
+    radial-gradient(90% 70% at 10% 0%, #3f7a68 0%, transparent 60%),
+    linear-gradient(160deg, var(--desk-a), var(--desk-b));
+  box-shadow: 0 30px 60px -30px rgba(10, 30, 25, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+.desk::after { content: ""; position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px); background-size: 22px 22px; pointer-events: none; }
+.desk-icons { position: absolute; left: 18px; top: 18px; display: grid; gap: 18px; z-index: 1; }
+.desk-icon { width: 56px; display: grid; justify-items: center; gap: 4px; font: 400 11px/1.2 var(--font-body); color: rgba(255,255,255,0.86); text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+.desk-icon i { width: 34px; height: 30px; border-radius: 6px; display: block; background: linear-gradient(180deg, #f3c860, #dca23a); box-shadow: inset 0 -6px 0 rgba(0,0,0,0.08); }
+.desk-icon i.bin { background: linear-gradient(180deg, #d9e4ea, #a9bac4); border-radius: 4px 4px 8px 8px; width: 28px; }
+.widget {
+  position: absolute; z-index: 2; right: 28px; top: 28px; width: min(420px, calc(100% - 110px)); height: 500px;
+  border: 0; border-radius: 14px; background: transparent; color-scheme: normal;
+  box-shadow: 0 18px 40px -18px rgba(0,0,0,0.6);
+}
+.taskbar { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; height: 48px; display: flex; align-items: center; padding-inline: 14px; gap: 8px; background: rgba(22, 30, 28, 0.78); backdrop-filter: blur(16px); border-top: 1px solid rgba(255,255,255,0.08); color: #e8efeb; }
+.taskbar .apps { display: flex; gap: 6px; margin-inline: auto; }
+.taskbar .apps i { width: 30px; height: 30px; border-radius: 7px; display: block; background: rgba(255,255,255,0.10); }
+.taskbar .apps i:first-child { background: linear-gradient(135deg, #4aa3ff, #2266dd); }
+.tray { display: flex; align-items: center; gap: 10px; font: 400 11px/1.25 var(--font-mono); text-align: right; }
+.tray .dc { width: 20px; height: 20px; border-radius: 5px; display: grid; place-items: center; background: #0d7a63; }
+.hint { position: absolute; z-index: 3; left: 18px; bottom: 62px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: rgba(255,255,255,0.85); text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
+kbd { font: 500 11px/1 var(--font-mono); padding: 4px 6px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.35); border-bottom-width: 2px; background: rgba(0,0,0,0.25); color: #fff; }
+@media (max-width: 560px) {
+  .desk { height: 580px; }
+  .desk-icons, .hint { display: none; }
+  .widget { right: 12px; left: 12px; top: 12px; width: auto; height: 506px; }
+  .tray .clock { display: none; }
+}
+
+/* 데모 조작 */
+.tweak { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 16px; font-size: 14px; color: var(--muted); }
+.tweak .label { font: 500 12px/1 var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font: 500 13px/1 var(--font-body); padding: 7px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.chip[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.chip .sw { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.15); }
+.tweak input[type="range"] { accent-color: var(--accent); width: 140px; }
+.tweak output { font: 500 13px/1 var(--font-mono); color: var(--ink); min-width: 4ch; }
+
+/* ── 섹션 공통 ── */
+section.block { padding-block: 72px; border-top: 1px solid var(--line); }
+.block h2 { font: 700 clamp(26px, 3.4vw, 34px)/1.25 var(--font-body); letter-spacing: -0.03em; margin: 0 0 12px; text-wrap: balance; }
+.block .intro { color: var(--muted); max-width: var(--measure); margin: 0 0 40px; }
+
+.features { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+@media (max-width: 860px) { .features { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .features { grid-template-columns: minmax(0, 1fr); } }
+.feature { background: var(--surface); padding: 26px 24px 28px; min-width: 0; }
+.feature svg { color: var(--accent); margin-bottom: 14px; }
+.feature h3 { font: 700 17px/1.4 var(--font-body); margin: 0 0 6px; letter-spacing: -0.01em; }
+.feature p { margin: 0; color: var(--muted); font-size: 15px; }
+.feature kbd { color: var(--ink); background: var(--paper); border-color: var(--line); }
+
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; counter-reset: step; }
+@media (max-width: 860px) { .steps { grid-template-columns: minmax(0, 1fr); } }
+.steps li { counter-increment: step; min-width: 0; }
+.steps li::before { content: counter(step, decimal-leading-zero); display: block; font: 800 44px/1 var(--font-display); color: var(--accent); letter-spacing: -0.04em; margin-bottom: 12px; }
+.steps h3 { font: 700 18px/1.4 var(--font-body); margin: 0 0 6px; }
+.steps p { margin: 0; color: var(--muted); font-size: 15px; }
+.note { margin-top: 36px; padding: 18px 20px; border: 1px solid var(--line); border-left: 3px solid var(--desk-glow); border-radius: 10px; background: var(--surface); font-size: 15px; max-width: 760px; }
+.note strong { display: block; margin-bottom: 4px; }
+
+.privacy { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: start; }
+@media (max-width: 860px) { .privacy { grid-template-columns: minmax(0, 1fr); } }
+.privacy ul { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
+.scopes { width: 100%; border-collapse: collapse; font-size: 14px; }
+.scopes th, .scopes td { text-align: left; padding: 12px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.scopes th { font: 500 12px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.scopes code { font: 400 12.5px/1.5 var(--font-mono); word-break: break-all; }
+.table-scroll { overflow-x: auto; }
+
+.faq { max-width: 780px; display: grid; gap: 0; }
+.faq details { border-bottom: 1px solid var(--line); padding-block: 4px; }
+.faq summary { cursor: pointer; list-style: none; font-weight: 500; padding-block: 16px; display: flex; justify-content: space-between; gap: 16px; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; font: 400 20px/1 var(--font-mono); color: var(--muted); }
+.faq details[open] summary::after { content: "−"; }
+.faq details p { margin: 0 0 16px; color: var(--muted); }
+code.path { font: 400 13px/1.5 var(--font-mono); background: color-mix(in srgb, var(--ink) 6%, transparent); padding: 1px 6px; border-radius: 4px; word-break: break-all; }
+
+footer { border-top: 1px solid var(--line); padding-block: 32px 48px; font-size: 14px; color: var(--muted); }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+footer .legal { margin-left: auto; }
+@media (max-width: 560px) { footer .legal { margin-left: 0; } }
+</style>
+</head>
+<body>
+<div class="page" id="page" data-lang="ko">
+
+<header class="top">
+  <div class="wrap">
+    <a class="wordmark" href="#top" aria-label="DeskCal">
+      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="4" width="19" height="17" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M2.5 9.5h19M8 2.5v3M16 2.5v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="15" r="2.2" fill="#0d7a63"/></svg>
+      DeskCal
+    </a>
+    <nav class="nav" aria-label="섹션">
+      <a href="#features"><span lang="ko">기능</span><span lang="en">Features</span></a>
+      <a href="#install"><span lang="ko">설치</span><span lang="en">Install</span></a>
+      <a href="#privacy"><span lang="ko">개인정보</span><span lang="en">Privacy</span></a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="lang" role="group" aria-label="Language">
+      <button type="button" id="lang-ko" data-set-lang="ko" aria-pressed="true">KO</button>
+      <button type="button" id="lang-en" data-set-lang="en" aria-pressed="false">EN</button>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <div>
+      <p class="eyebrow"><span lang="ko">Windows 11 바탕화면 위젯</span><span lang="en">A desktop widget for Windows 11</span></p>
+      <h1>
+        <span lang="ko">Google 캘린더와 할 일을<br>바탕화면 위에 그대로.</span>
+        <span lang="en"><span class="en-display">Your calendar and tasks,</span><br>right on your desktop.</span>
+      </h1>
+      <p class="lead">
+        <span lang="ko">DeskCal은 Google 캘린더의 월간 일정과 Google Tasks 할 일을 바탕화면에 붙여 둡니다. 브라우저를 열지 않아도 오늘 일정이 보이고, 할 일은 바로 체크할 수 있습니다.</span>
+        <span lang="en">DeskCal pins your Google Calendar month view and Google Tasks to the Windows desktop. See today's schedule without opening a browser, and check off tasks right from the widget.</span>
+      </p>
+      <div class="cta">
+        <a class="btn primary" href="#install" aria-disabled="true" title="곧 공개됩니다">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8m0 0L4.5 6.5M8 10l3.5-3.5M2.5 13.5h11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span lang="ko">다운로드 · 곧 공개</span><span lang="en">Download · coming soon</span>
+        </a>
+        <a class="btn" href="#demo-controls"><span lang="ko">데모 만져 보기</span><span lang="en">Try the demo</span></a>
+      </div>
+      <p class="req"><span lang="ko">Windows 11 · x64 · 무료</span><span lang="en">Windows 11 · x64 · Free</span></p>
+    </div>
+
+    <div>
+      <div class="desk" role="img" aria-label="DeskCal 위젯이 놓인 Windows 바탕화면 예시">
+        <div class="desk-icons" aria-hidden="true">
+          <div class="desk-icon"><i class="bin"></i><span lang="ko">휴지통</span><span lang="en">Recycle Bin</span></div>
+          <div class="desk-icon"><i></i><span lang="ko">문서</span><span lang="en">Documents</span></div>
+        </div>
+        <iframe class="widget" id="demo" src="demo/index.html" title="DeskCal 라이브 데모 (예시 데이터)" allowtransparency="true"></iframe>
+        <p class="hint" aria-hidden="true"><kbd>Win</kbd>+<kbd>D</kbd><span lang="ko">를 눌러도 위젯은 그대로</span><span lang="en">and the widget stays put</span></p>
+        <div class="taskbar" aria-hidden="true">
+          <div class="apps"><i></i><i></i><i></i><i></i></div>
+          <div class="tray">
+            <span class="dc"><svg width="12" height="12" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="4" fill="none" stroke="#fff" stroke-width="2.4"/><path d="M3 10h18" stroke="#fff" stroke-width="2.4"/></svg></span>
+            <span class="clock"><span id="clock-time">14:32</span><br><span id="clock-date">2026-09-30</span></span>
+          </div>
+        </div>
+      </div>
+      <div class="tweak" id="demo-controls">
+        <span class="label"><span lang="ko">테마</span><span lang="en">Theme</span></span>
+        <div class="chips" id="theme-chips">
+          <button type="button" class="chip" data-theme-name="dark" aria-pressed="true"><i class="sw" style="background:#16181e"></i><span lang="ko">다크</span><span lang="en">Dark</span></button>
+          <button type="button" class="chip" data-theme-name="light" aria-pressed="false"><i class="sw" style="background:#fafafc"></i><span lang="ko">라이트</span><span lang="en">Light</span></button>
+          <button type="button" class="chip" data-theme-name="midnight" aria-pressed="false"><i class="sw" style="background:#0f172a"></i><span lang="ko">미드나잇</span><span lang="en">Midnight</span></button>
+          <button type="button" class="chip" data-theme-name="forest" aria-pressed="false"><i class="sw" style="background:#14201a"></i><span lang="ko">포레스트</span><span lang="en">Forest</span></button>
+          <button type="button" class="chip" data-theme-name="rose" aria-pressed="false"><i class="sw" style="background:#fdf2f4"></i><span lang="ko">로즈</span><span lang="en">Rose</span></button>
+        </div>
+        <label for="opacity"><span lang="ko">배경 불투명도</span><span lang="en">Background opacity</span></label>
+        <input type="range" id="opacity" min="30" max="100" value="92">
+        <output for="opacity" id="opacity-out">92%</output>
+      </div>
+      <p class="req"><span lang="ko">위 위젯은 예시 데이터로 동작하는 실제 앱 화면입니다. 날짜를 누르거나 할 일을 체크해 보세요.</span><span lang="en">The widget above is the real app UI running on sample data. Click a date or check off a task.</span></p>
+    </div>
+  </div>
+
+  <section class="block" id="features">
+    <div class="wrap">
+      <h2><span lang="ko">필요한 것만, 바탕화면에</span><span lang="en">Just what you need, on the desktop</span></h2>
+      <p class="intro"><span lang="ko">창을 가리지 않고 항상 뒤에 머무르는 작은 위젯입니다. 모양과 표시 항목은 원하는 대로 바꿀 수 있습니다.</span><span lang="en">A small widget that stays behind your windows. Change how it looks and what it shows.</span></p>
+      <div class="features">
+        <article class="feature">
+          <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M3 9.5h18M8 3v3M16 3v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="14" r="1.2" fill="currentColor"/><circle cx="12" cy="14" r="1.2" fill="currentColor"/><circle cx="16" cy="17" r="1.2" fill="currentColor"/></svg>
+          <h3><span lang="ko">한눈에 보는 월간 달력</span><span lang="en">Month view at a glance</span></h3>
+          <p><span lang="ko">일정이 있는 날은 캘린더 색 점으로 표시됩니다. 날짜를 누르면 그날 일정이 시간순으로 나옵니다.</span><span lang="en">Days with events get dots in each calendar's color. Click a date to see that day's events in order.</span></p>
+        </article>
+        <article class="feature">
+          <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 12.2l2.7 2.7L16.2 9" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <h3><span lang="ko">할 일은 바로 체크</span><span lang="en">Check off tasks in place</span></h3>
+          <p><span lang="ko">체크하면 Google Tasks에 바로 반영됩니다. 3초 안에 다시 누르면 취소됩니다.</span><span lang="en">Checking a task updates Google Tasks right away. Click again within 3 seconds to undo.</span></p>
+        </article>
+        <article class="feature">
+          <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="4" width="19" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8.5 20.5h7M12 17v3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><rect x="12.5" y="6.5" width="6.5" height="7.5" rx="1.5" fill="currentColor" opacity=".35"/></svg>
+          <h3><span lang="ko">바탕화면에 고정</span><span lang="en">Lives on the desktop</span></h3>
+          <p><span lang="ko">다른 창보다 항상 뒤에 있어 작업을 가리지 않고, <kbd class="k">Win</kbd>+<kbd class="k">D</kbd>로 바탕화면을 보면 나타납니다.</span><span lang="en">It stays behind other windows, and shows up whenever you press <kbd class="k">Win</kbd>+<kbd class="k">D</kbd>.</span></p>
+        </article>
+        <article class="feature">
+          <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.8 1.8-1.7 0-1.2-1-1.5-1-2.6 0-1 .8-1.7 1.8-1.7H17a4 4 0 0 0 4-4C21 6.5 17 3 12 3z" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="7.5" cy="11" r="1.3" fill="currentColor"/><circle cx="10.5" cy="7" r="1.3" fill="currentColor"/><circle cx="15" cy="7.5" r="1.3" fill="currentColor"/></svg>
+          <h3><span lang="ko">테마와 투명도</span><span lang="en">Themes and opacity</span></h3>
+          <p><span lang="ko">테마 6가지, 강조색, 배경 불투명도, 글자 크기를 고를 수 있고, 상단 바를 숨겨 달력만 둘 수도 있습니다.</span><span lang="en">Six themes, accent colors, background opacity and text size. Hide the top bar to keep only the calendar.</span></p>
+        </article>
+        <article class="feature">
+          <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4 3.5V16H6.5A2.5 2.5 0 0 1 4 13.5z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8.5 10.2l1.8 1.8 3.8-3.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <h3><span lang="ko">스페이스·문서에서 받은 할 일도</span><span lang="en">Tasks assigned in Chat and Docs</span></h3>
+          <p><span lang="ko">Google Chat 스페이스나 Docs에서 나에게 할당된 할 일도 함께 보여줍니다.</span><span lang="en">Tasks assigned to you in Google Chat spaces or Docs show up alongside your own.</span></p>
+        </article>
+        <article class="feature">
+          <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9.5a13 13 0 0 1 18 0M6 13a8.5 8.5 0 0 1 12 0M9.2 16.4a4 4 0 0 1 5.6 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4 4l16 16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          <h3><span lang="ko">오프라인에서도</span><span lang="en">Works offline</span></h3>
+          <p><span lang="ko">인터넷이 끊기면 마지막으로 받은 일정을 보여주고, 연결되면 자동으로 새로고침합니다.</span><span lang="en">When you're offline it shows the last synced data, then refreshes automatically once you're back.</span></p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="install">
+    <div class="wrap">
+      <h2><span lang="ko">설치는 세 단계</span><span lang="en">Three steps to install</span></h2>
+      <p class="intro"><span lang="ko">설치 파일은 공개 준비 중입니다. 공개되면 GitHub Releases에서 받을 수 있습니다.</span><span lang="en">The installer is being prepared. Once released, it will be available on GitHub Releases.</span></p>
+      <ol class="steps">
+        <li>
+          <h3><span lang="ko">설치 파일 받기</span><span lang="en">Download the installer</span></h3>
+          <p><span lang="ko">GitHub Releases에서 설치 파일(<code class="path">.exe</code>)을 받아 실행합니다.</span><span lang="en">Download the installer (<code class="path">.exe</code>) from GitHub Releases and run it.</span></p>
+        </li>
+        <li>
+          <h3><span lang="ko">Google 계정으로 로그인</span><span lang="en">Sign in with Google</span></h3>
+          <p><span lang="ko">위젯의 로그인 버튼을 누르면 브라우저가 열립니다. 캘린더 보기와 할 일 권한을 허용합니다.</span><span lang="en">Click the sign-in button and your browser opens. Allow access to view your calendar and manage your tasks.</span></p>
+        </li>
+        <li>
+          <h3><span lang="ko">바탕화면에서 확인</span><span lang="en">Check your desktop</span></h3>
+          <p><span lang="ko">위젯이 바탕화면에 자리 잡습니다. Windows를 켤 때마다 자동으로 실행됩니다.</span><span lang="en">The widget settles onto your desktop and starts automatically with Windows.</span></p>
+        </li>
+      </ol>
+      <div class="note">
+        <strong><span lang="ko">"Google에서 확인하지 않은 앱" 화면이 나오면</span><span lang="en">If you see "Google hasn't verified this app"</span></strong>
+        <span lang="ko">DeskCal은 아직 Google 앱 검증 전입니다. <b>고급</b> → <b>DeskCal(으)로 이동</b>을 누르면 계속 진행할 수 있습니다. 검증을 마치면 이 화면은 나오지 않습니다.</span>
+        <span lang="en">DeskCal hasn't completed Google's app verification yet. Choose <b>Advanced</b> → <b>Go to DeskCal</b> to continue. This screen goes away once verification is done.</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="privacy">
+    <div class="wrap">
+      <h2><span lang="ko">내 데이터는 내 PC에만</span><span lang="en">Your data stays on your PC</span></h2>
+      <p class="intro"><span lang="ko">DeskCal에는 서버가 없습니다. 앱은 Google과 직접 통신하고, 개발자는 어떤 데이터도 받지 않습니다.</span><span lang="en">DeskCal has no server. The app talks to Google directly, and the developer never receives any of your data.</span></p>
+      <div class="privacy">
+        <ul>
+          <li><span lang="ko">로그인 토큰은 Windows 자격 증명 관리자에 암호화되어 저장됩니다.</span><span lang="en">Your sign-in token is stored encrypted in Windows Credential Manager.</span></li>
+          <li><span lang="ko">일정과 할 일은 오프라인 표시를 위해 내 PC에만 임시 저장됩니다.</span><span lang="en">Events and tasks are cached only on your PC so they show while offline.</span></li>
+          <li><span lang="ko">분석 도구, 광고, 사용 통계 수집이 없습니다.</span><span lang="en">No analytics, ads or usage tracking.</span></li>
+          <li><span lang="ko">로그아웃하면 저장된 토큰이 지워집니다. Google 계정 설정에서 언제든 권한을 철회할 수 있습니다.</span><span lang="en">Signing out deletes the stored token. You can revoke access anytime in your Google Account settings.</span></li>
+        </ul>
+        <div>
+          <div class="table-scroll">
+            <table class="scopes">
+              <thead><tr><th><span lang="ko">요청 권한</span><span lang="en">Permission</span></th><th><span lang="ko">사용 목적</span><span lang="en">Used for</span></th></tr></thead>
+              <tbody>
+                <tr><td><code>calendar.readonly</code></td><td><span lang="ko">캘린더 목록과 일정을 읽어 달력에 표시 (수정하지 않음)</span><span lang="en">Read calendars and events to show them (never modified)</span></td></tr>
+                <tr><td><code>tasks</code></td><td><span lang="ko">할 일 목록을 읽고, 체크한 할 일을 완료로 표시</span><span lang="en">Read task lists and mark checked tasks as completed</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p><a href="privacy.html"><span lang="ko">개인정보처리방침 전체 보기 →</span><span lang="en">Read the full privacy policy →</span></a></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="faq">
+    <div class="wrap">
+      <h2><span lang="ko">자주 묻는 질문</span><span lang="en">FAQ</span></h2>
+      <div class="faq">
+        <details>
+          <summary><span lang="ko">위젯을 종료하려면?</span><span lang="en">How do I quit the widget?</span></summary>
+          <p><span lang="ko">작업표시줄 오른쪽 알림 영역의 DeskCal 아이콘을 오른쪽 클릭하고 <b>종료</b>를 누릅니다. 아이콘이 안 보이면 <b>^</b>를 눌러 숨겨진 아이콘을 펼쳐 보세요.</span><span lang="en">Right-click the DeskCal icon in the notification area and choose <b>Quit</b>. If you don't see it, click <b>^</b> to show hidden icons.</span></p>
+        </details>
+        <details>
+          <summary><span lang="ko">Windows 시작 시 자동 실행을 끄려면?</span><span lang="en">How do I stop it from starting with Windows?</span></summary>
+          <p><span lang="ko">위젯의 설정(⚙) → <b>일반</b> 탭에서 "Windows 시작 시 자동 실행"을 끄고 저장합니다.</span><span lang="en">Open settings (⚙) → <b>General</b>, turn off "Start with Windows" and save.</span></p>
+        </details>
+        <details>
+          <summary><span lang="ko">위젯이 창을 가리지 않게 하려면?</span><span lang="en">Will it cover my windows?</span></summary>
+          <p><span lang="ko">가리지 않습니다. DeskCal은 항상 다른 창 뒤에 있고, 바탕화면을 볼 때만 앞으로 나옵니다. 실수로 옮겨지지 않게 트레이 메뉴의 <b>위치 잠금</b>을 켤 수도 있습니다.</span><span lang="en">No. DeskCal always sits behind other windows and comes forward only when you view the desktop. Turn on <b>Lock position</b> in the tray menu to keep it from moving.</span></p>
+        </details>
+        <details>
+          <summary><span lang="ko">데이터는 어디에 저장되나요?</span><span lang="en">Where is my data stored?</span></summary>
+          <p><span lang="ko">설정과 캐시는 <code class="path">%APPDATA%\kr.taekit93.gcalwidget\</code>, 로그인 토큰은 Windows 자격 증명 관리자의 <code class="path">gcal-widget</code> 항목에 있습니다.</span><span lang="en">Settings and cache live in <code class="path">%APPDATA%\kr.taekit93.gcalwidget\</code>, and the sign-in token is under <code class="path">gcal-widget</code> in Windows Credential Manager.</span></p>
+        </details>
+        <details>
+          <summary><span lang="ko">Mac에서도 쓸 수 있나요?</span><span lang="en">Does it work on Mac?</span></summary>
+          <p><span lang="ko">지금은 Windows만 지원합니다.</span><span lang="en">Not yet. DeskCal is Windows-only for now.</span></p>
+        </details>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>DeskCal</span>
+    <a href="https://github.com/taekit93/google-calendar-widget">GitHub</a>
+    <a href="privacy.html"><span lang="ko">개인정보처리방침</span><span lang="en">Privacy policy</span></a>
+    <span class="legal"><span lang="ko">Google, Google 캘린더, Google Tasks는 Google LLC의 상표입니다. DeskCal은 Google과 관련이 없는 독립 앱입니다.</span><span lang="en">Google, Google Calendar and Google Tasks are trademarks of Google LLC. DeskCal is an independent app not affiliated with Google.</span></span>
+  </div>
+</footer>
+</div>
+
+<script>
+(function () {
+  var page = document.getElementById("page");
+  var store = { get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+                set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+  function setLang(lang) {
+    page.dataset.lang = lang;
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-set-lang]").forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.setLang === lang));
+    });
+    store.set("deskcal-lang", lang);
+  }
+  var saved = store.get("deskcal-lang");
+  setLang(saved || ((navigator.language || "ko").toLowerCase().indexOf("ko") === 0 ? "ko" : "en"));
+  document.querySelectorAll("[data-set-lang]").forEach(function (b) {
+    b.addEventListener("click", function () { setLang(b.dataset.setLang); });
+  });
+
+  // 다운로드 버튼: 공개 전에는 설치 안내로만 이동
+  document.querySelectorAll('.btn[aria-disabled="true"]').forEach(function (a) {
+    a.addEventListener("click", function (e) { e.preventDefault(); document.getElementById("install").scrollIntoView(); });
+  });
+
+  // 작업표시줄 시계
+  function tick() {
+    var d = new Date(), p = function (n) { return String(n).padStart(2, "0"); };
+    document.getElementById("clock-time").textContent = p(d.getHours()) + ":" + p(d.getMinutes());
+    document.getElementById("clock-date").textContent = d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+  }
+  tick(); setInterval(tick, 30000);
+
+  // 데모 위젯 조작
+  var frame = document.getElementById("demo");
+  function send(patch) {
+    if (frame.contentWindow) frame.contentWindow.postMessage({ type: "deskcal:settings", patch: patch }, "*");
+  }
+  document.querySelectorAll("[data-theme-name]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("[data-theme-name]").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+      send({ theme: b.dataset.themeName });
+    });
+  });
+  var range = document.getElementById("opacity"), out = document.getElementById("opacity-out");
+  range.addEventListener("input", function () {
+    out.textContent = range.value + "%";
+    send({ opacity: Number(range.value) / 100 });
+  });
+})();
+</script>
+</body>
+</html>

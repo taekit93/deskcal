@@ -8,3 +8,6 @@ src-tauri/gen/
 *.log
 .idea/
 .vscode/
+
+# 소개 페이지 데모 빌드 결과 (npm run build:site)
+site/demo/
