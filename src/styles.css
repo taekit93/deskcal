@@ -52,7 +52,8 @@ header { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border
 .views button, .seg button, .tabs button { padding: 3px 9px; color: var(--muted); border-radius: 7px; }
 .views button.active, .seg button.active, .tabs button.active { background: var(--panel); color: var(--fg); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15); }
 .status { flex: 1; min-width: 0; font-size: 0.85em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-button.icon { width: 26px; height: 26px; font-size: 1.15em; color: var(--muted); }
+button.icon { width: 26px; height: 26px; font-size: 1.15em; color: var(--muted); display: inline-grid; place-items: center; }
+button.icon[aria-pressed="true"] { color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, transparent); }
 button.icon:hover, .nav:hover, .cell:hover, .theme-opt:hover { background: var(--hover); color: var(--fg); }
 
 /* ── 로그인 ─────────────────────────────── */

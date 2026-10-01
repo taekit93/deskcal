@@ -32,4 +32,5 @@ export const api = {
     invoke<void>("set_task_completed", { listId, taskId, completed }),
   getSettings: () => invoke<Settings>("get_settings"),
   saveSettings: (settings: Settings) => invoke<Settings>("save_settings", { settings }),
+  toggleLock: () => invoke<Settings>("toggle_lock_cmd"),
 };

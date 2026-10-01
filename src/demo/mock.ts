@@ -14,7 +14,8 @@ mockIPC(async (cmd, args) => {
   switch (cmd) {
     case "auth_status": return true;
     case "get_settings": return settings;
-    case "save_settings": settings = a.settings as Settings; return settings;
+    case "save_settings": settings = { ...(a.settings as Settings), locked: settings.locked }; return settings;
+    case "toggle_lock_cmd": settings = { ...settings, locked: !settings.locked }; return settings;
     case "get_month": await wait(150); return sampleMonth(a.year as number, a.month as number, new Date());
     case "get_tasks": await wait(150); return sampleTasks(new Date(), completed);
     case "set_task_completed":

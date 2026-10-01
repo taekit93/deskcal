@@ -75,6 +75,7 @@ pub fn run() {
             commands::set_task_completed,
             commands::get_settings,
             commands::save_settings,
+            commands::toggle_lock_cmd,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

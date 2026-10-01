@@ -191,6 +191,9 @@ function applyLock(locked: boolean) {
     else el.setAttribute("data-tauri-drag-region", "");
   }
   app.dataset.locked = String(locked);
+  const pin = $("btn-pin");
+  pin.setAttribute("aria-pressed", String(locked));
+  pin.title = locked ? "위치·크기 고정 해제" : "위치·크기 고정";
   getCurrentWindow().setResizable(!locked).catch(() => {});
 }
 
@@ -278,6 +281,15 @@ async function init() {
   resetTimer();
   loginBtn.onclick = () => void doLogin();
   $("btn-refresh").onclick = () => void refreshAll();
+  $("btn-pin").onclick = async () => {
+    try {
+      const s = await api.toggleLock();
+      state.settings = s;
+      applyLock(s.locked);
+    } catch (e) {
+      toast(`고정 상태 변경 실패: ${errorText(e)}`);
+    }
+  };
   $("btn-settings").onclick = openSettings;
 
   await listen("refresh", () => void refreshAll());

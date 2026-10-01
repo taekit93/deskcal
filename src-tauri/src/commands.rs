@@ -140,9 +140,28 @@ pub fn save_settings(app: AppHandle, state: State<'_, AppState>, settings: Setti
     Ok(saved)
 }
 
+/// 상단 바 핀 버튼: 위치·크기 고정을 뒤집는다 (트레이 체크 표시도 함께 맞춘다).
+#[tauri::command]
+pub fn toggle_lock_cmd(app: AppHandle) -> Result<Settings, AppError> {
+    crate::tray::toggle_lock_everywhere(&app)
+}
+
+/// "위치·크기 고정"을 뒤집고 저장한다. 고정 상태는 트레이 메뉴와 핀 버튼만 바꾼다.
+pub fn toggle_lock(state: &AppState) -> Result<Settings, AppError> {
+    let updated = {
+        let mut s = state.settings.lock().unwrap();
+        s.locked = !s.locked;
+        s.clone()
+    };
+    settings::save(&state.settings_path, &updated)?;
+    Ok(updated)
+}
+
 /// 설정을 검증·저장하고, 실제로 저장된 값을 돌려준다 (화면은 이 값을 기준으로 삼는다).
 pub fn persist_settings(state: &AppState, settings: Settings) -> Result<Settings, AppError> {
-    let settings = settings.normalized();
+    let mut settings = settings.normalized();
+    // 고정 상태는 트레이가 관리한다. 설정 창이 들고 있던 예전 값으로 덮어쓰지 않는다.
+    settings.locked = state.settings.lock().unwrap().locked;
     settings::save(&state.settings_path, &settings)?;
     *state.settings.lock().unwrap() = settings.clone();
     Ok(settings)
@@ -188,6 +207,27 @@ mod tests {
         assert_eq!(saved.accent, None);
         assert_eq!(*state.settings.lock().unwrap(), saved);
         assert_eq!(settings::load(&state.settings_path), saved);
+    }
+
+    #[test]
+    fn saving_settings_from_the_panel_keeps_the_tray_lock_state() {
+        // 설정 창은 열릴 때의 locked 값을 들고 있으므로, 저장이 트레이의 잠금 상태를 덮어쓰면 안 된다.
+        let dir = tempfile::tempdir().unwrap();
+        let state = state_with_cache(dir.path());
+        state.settings.lock().unwrap().locked = true;
+        let saved = persist_settings(&state, Settings { locked: false, ..Settings::default() }).unwrap();
+        assert!(saved.locked);
+        assert!(settings::load(&state.settings_path).locked);
+    }
+
+    #[test]
+    fn toggle_lock_flips_and_persists() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = state_with_cache(dir.path());
+        assert!(toggle_lock(&state).unwrap().locked);
+        assert!(settings::load(&state.settings_path).locked);
+        assert!(!toggle_lock(&state).unwrap().locked);
+        assert!(!state.settings.lock().unwrap().locked);
     }
 
     #[tokio::test]
