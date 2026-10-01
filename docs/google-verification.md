@@ -12,13 +12,13 @@
 | 홈페이지 / 개인정보처리방침 | https://taekit93.github.io/deskcal/ , https://taekit93.github.io/deskcal/privacy.html |
 | 승인된 도메인 | taekit93.github.io |
 | Search Console | `https://taekit93.github.io/`(HTML 파일, 저장소 `taekit93/taekit93.github.io`)와 `https://taekit93.github.io/deskcal/` 소유권 확인 완료 |
-| 브랜드 검증 | **대기**: 소유권 확인 직후라 Google이 24시간 뒤 재시도를 요구함 |
-| 데이터 액세스 검증 | **대기**: 브랜드 검증 통과 후 신청 가능, 시연 영상(YouTube 링크) 필요 |
+| 브랜드 검증 | **대기**: 2026-10-01 재시도도 같은 사유로 거절. `/deskcal/` 직접 확인(HTML 파일)을 추가했으므로 2026-10-03 00:00 이후 재시도 |
+| 데이터 액세스 검증 | **대기**: 브랜드 검증 통과 후 신청 가능, 시연 영상 준비됨: https://youtu.be/tBsj6BP2uBM |
 
 ## 남은 순서
 
 1. **2026-10-01 이후** Google Cloud 콘솔 → Google 인증 플랫폼 → **브랜딩** → 인증 상태의 "문제 보기" → "문제를 해결함" → 계속 (브랜딩 재인증 요청)
-2. `scripts/record-demo.ps1`로 4장 순서대로 시연 영상을 녹화하고 YouTube에 **일부 공개**로 업로드
+2. ~~시연 영상 녹화·업로드~~ 완료: https://youtu.be/tBsj6BP2uBM (공개)
 3. **인증 센터** → 데이터 액세스 인증 신청: 3장의 스코프별 설명과 데이터 처리 요약을 붙여 넣고 영상 링크 입력
 4. 심사 메일에 답변 (보통 며칠~몇 주)
 
