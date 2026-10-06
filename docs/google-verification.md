@@ -12,8 +12,8 @@
 | 홈페이지 / 개인정보처리방침 | https://taekit93.github.io/deskcal/ , https://taekit93.github.io/deskcal/privacy.html |
 | 승인된 도메인 | taekit93.github.io |
 | Search Console | `https://taekit93.github.io/`(HTML 파일, 저장소 `taekit93/taekit93.github.io`)와 `https://taekit93.github.io/deskcal/` 소유권 확인 완료 |
-| 브랜드 검증 | **대기**: 2026-10-01 재시도도 같은 사유로 거절. `/deskcal/` 직접 확인(HTML 파일)을 추가했으므로 2026-10-03 00:00 이후 재시도 |
-| 데이터 액세스 검증 | **대기**: 브랜드 검증 통과 후 신청 가능, 시연 영상 준비됨: https://youtu.be/tBsj6BP2uBM |
+| 브랜드 검증 | **검토 중**: 세 번 자동 거절 후 2026-10-06 이의신청 제출(사람 검토, 영업일 2~3일) |
+| 데이터 액세스 검증 | **검토 중**: 2026-10-06 이의신청과 함께 제출(스코프 근거, 영상 https://youtu.be/tBsj6BP2uBM) |
 
 ## 남은 순서
 
